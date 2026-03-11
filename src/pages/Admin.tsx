@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, LogOut, ScrollText, Ticket, Key, Users, RefreshCw, Trash2, Plus, ToggleLeft, ToggleRight, Loader2, ShieldCheck, Copy, Eye, UserCheck, UserX, TrendingUp, CreditCard } from "lucide-react";
+import { Lock, LogOut, ScrollText, Ticket, Key, Users, RefreshCw, Trash2, Plus, ToggleLeft, ToggleRight, Loader2, ShieldCheck, Copy, Eye, EyeOff, UserCheck, UserX, TrendingUp, CreditCard } from "lucide-react";
 
 interface AdminLog {
   id: number;
@@ -71,6 +71,7 @@ const apiJson = async (url: string, body?: any) => {
 export default function Admin() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const { toast } = useToast();
 
@@ -123,14 +124,26 @@ export default function Admin() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Input
-                  type="password"
-                  placeholder="Пароль администратора"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  data-testid="input-admin-password"
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Пароль администратора"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    className="pr-10"
+                    data-testid="input-admin-password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={loginLoading} data-testid="button-admin-login">
                 {loginLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />}
