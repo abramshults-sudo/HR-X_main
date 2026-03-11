@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, LogOut, ScrollText, Ticket, Key, Users, RefreshCw, Trash2, Plus, ToggleLeft, ToggleRight, Loader2, ShieldCheck, Copy } from "lucide-react";
+import { Lock, LogOut, ScrollText, Ticket, Key, Users, RefreshCw, Trash2, Plus, ToggleLeft, ToggleRight, Loader2, ShieldCheck, Copy, Eye, UserCheck, UserX, TrendingUp, CreditCard } from "lucide-react";
 
 interface AdminLog {
   id: number;
@@ -29,11 +29,30 @@ interface PromoCode {
   createdAt: string;
 }
 
+interface TrafficPeriod {
+  views: number;
+  unique: number;
+  auth: number;
+  guests: number;
+}
+
 interface Stats {
   users: number;
+  paidUsers: number;
   activePromos: number;
   totalLogs: number;
   paymentEvents: number;
+  traffic: {
+    today: TrafficPeriod;
+    week: TrafficPeriod;
+    month: TrafficPeriod;
+    total: { views: number; unique: number };
+  };
+  newUsers: {
+    today: number;
+    week: number;
+    month: number;
+  };
 }
 
 const api = async (url: string, options?: RequestInit) => {
@@ -287,11 +306,67 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {stats && (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard icon={<Users className="h-5 w-5" />} label="Пользователи" value={stats.users} />
-            <StatCard icon={<Ticket className="h-5 w-5" />} label="Активных промо" value={stats.activePromos} />
-            <StatCard icon={<ScrollText className="h-5 w-5" />} label="Всего логов" value={stats.totalLogs} />
-            <StatCard icon={<Key className="h-5 w-5" />} label="Событий оплаты" value={stats.paymentEvents} />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              <StatCard icon={<Users className="h-5 w-5" />} label="Всего пользователей" value={stats.users} />
+              <StatCard icon={<CreditCard className="h-5 w-5" />} label="Оплативших" value={stats.paidUsers} />
+              <StatCard icon={<Ticket className="h-5 w-5" />} label="Активных промо" value={stats.activePromos} />
+              <StatCard icon={<ScrollText className="h-5 w-5" />} label="Всего логов" value={stats.totalLogs} />
+              <StatCard icon={<Key className="h-5 w-5" />} label="Событий оплаты" value={stats.paymentEvents} />
+            </div>
+
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5"><TrendingUp className="h-4 w-4" /> Посещения и пользователи</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-muted-foreground text-xs">
+                        <th className="text-left py-1.5 pr-3 font-semibold">Период</th>
+                        <th className="text-right py-1.5 px-2 font-semibold"><Eye className="inline h-3.5 w-3.5 mr-0.5" />Просмотры</th>
+                        <th className="text-right py-1.5 px-2 font-semibold"><Users className="inline h-3.5 w-3.5 mr-0.5" />Уникальные</th>
+                        <th className="text-right py-1.5 px-2 font-semibold"><UserCheck className="inline h-3.5 w-3.5 mr-0.5" />Зарег.</th>
+                        <th className="text-right py-1.5 px-2 font-semibold"><UserX className="inline h-3.5 w-3.5 mr-0.5" />Гости</th>
+                        <th className="text-right py-1.5 pl-2 font-semibold"><Plus className="inline h-3.5 w-3.5 mr-0.5" />Новых</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b">
+                        <td className="py-1.5 pr-3 font-medium">Сегодня</td>
+                        <td className="text-right py-1.5 px-2">{stats.traffic.today.views}</td>
+                        <td className="text-right py-1.5 px-2 font-semibold">{stats.traffic.today.unique}</td>
+                        <td className="text-right py-1.5 px-2 text-emerald-600">{stats.traffic.today.auth}</td>
+                        <td className="text-right py-1.5 px-2 text-muted-foreground">{stats.traffic.today.guests}</td>
+                        <td className="text-right py-1.5 pl-2 text-blue-600">{stats.newUsers.today}</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-1.5 pr-3 font-medium">7 дней</td>
+                        <td className="text-right py-1.5 px-2">{stats.traffic.week.views}</td>
+                        <td className="text-right py-1.5 px-2 font-semibold">{stats.traffic.week.unique}</td>
+                        <td className="text-right py-1.5 px-2 text-emerald-600">{stats.traffic.week.auth}</td>
+                        <td className="text-right py-1.5 px-2 text-muted-foreground">{stats.traffic.week.guests}</td>
+                        <td className="text-right py-1.5 pl-2 text-blue-600">{stats.newUsers.week}</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-1.5 pr-3 font-medium">30 дней</td>
+                        <td className="text-right py-1.5 px-2">{stats.traffic.month.views}</td>
+                        <td className="text-right py-1.5 px-2 font-semibold">{stats.traffic.month.unique}</td>
+                        <td className="text-right py-1.5 px-2 text-emerald-600">{stats.traffic.month.auth}</td>
+                        <td className="text-right py-1.5 px-2 text-muted-foreground">{stats.traffic.month.guests}</td>
+                        <td className="text-right py-1.5 pl-2 text-blue-600">{stats.newUsers.month}</td>
+                      </tr>
+                      <tr>
+                        <td className="py-1.5 pr-3 font-medium">Всего</td>
+                        <td className="text-right py-1.5 px-2">{stats.traffic.total.views}</td>
+                        <td className="text-right py-1.5 px-2 font-semibold">{stats.traffic.total.unique}</td>
+                        <td className="text-right py-1.5 px-2" colSpan={2}></td>
+                        <td className="text-right py-1.5 pl-2 text-blue-600">{stats.users}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 

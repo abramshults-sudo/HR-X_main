@@ -68,4 +68,15 @@ export type PromoCode = typeof promoCodes.$inferSelect;
 export type InsertPromoCode = typeof promoCodes.$inferInsert;
 export type AdminLog = typeof adminLogs.$inferSelect;
 export type InsertAdminLog = typeof adminLogs.$inferInsert;
+export const visits = pgTable("visits", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  userId: integer("user_id"),
+  ip: varchar("ip", { length: 45 }),
+  userAgent: text("user_agent"),
+  path: varchar("path", { length: 500 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type AppSetting = typeof appSettings.$inferSelect;
+export type Visit = typeof visits.$inferSelect;

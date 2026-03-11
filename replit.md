@@ -21,6 +21,7 @@ A React/Vite SPA that helps users build a resume and find relevant job listings 
   - `quizData.ts` — All quiz data: role groups with hh.ru IDs + search keywords, activities (grouped), software skills (grouped), professional skills (grouped), schedule/employment/salary/restriction options with API mappings
   - `regions.ts` — Region catalog sorted alphabetically
   - `mockResumeHelpers.ts` — Resume text builder from quiz state
+- `src/hooks/use-tracking.ts` — Page view tracking hook (sends to /api/track on navigation)
 - `src/services/` — API integration layer
   - `jobApi.ts` — Frontend vacancy search client: builds search params from QuizState, calls backend `/api/vacancies/search`, applies scoring/filtering/normalization client-side
   - `regionMapping.ts` — Maps app region IDs to hh.ru area IDs and trudvsem region codes

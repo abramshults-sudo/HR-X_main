@@ -5,6 +5,7 @@ import { storage } from "./storage.js";
 declare module "express-session" {
   interface SessionData {
     userId?: number;
+    trackingInit?: boolean;
   }
 }
 

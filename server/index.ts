@@ -43,6 +43,34 @@ app.use(
   })
 );
 
+import { visits } from "../shared/schema.js";
+
+app.post("/api/track", async (req, res) => {
+  try {
+    if (!req.session.trackingInit) {
+      req.session.trackingInit = true;
+    }
+    const sid = req.sessionID;
+    const userId = req.session?.userId || null;
+    const ip = req.ip || req.headers["x-forwarded-for"] as string || null;
+    const userAgent = (req.headers["user-agent"] || "").slice(0, 500);
+    const path = typeof req.body?.path === "string" ? req.body.path.slice(0, 500) : "/";
+
+    await db.insert(visits).values({
+      sessionId: sid,
+      userId,
+      ip,
+      userAgent,
+      path,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Track error:", err);
+    res.status(500).json({ ok: false });
+  }
+});
+
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/vacancies", vacancyRouter);
@@ -143,6 +171,26 @@ async function initDb() {
       tv_count INTEGER NOT NULL DEFAULT 0,
       cached_at TIMESTAMP DEFAULT NOW() NOT NULL
     )
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS visits (
+      id SERIAL PRIMARY KEY,
+      session_id VARCHAR(64) NOT NULL,
+      user_id INTEGER,
+      ip VARCHAR(45),
+      user_agent TEXT,
+      path VARCHAR(500),
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    )
+  `);
+
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_visits_created_at ON visits(created_at)
+  `);
+
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_visits_session_id ON visits(session_id)
   `);
 
   console.log("Database tables initialized");

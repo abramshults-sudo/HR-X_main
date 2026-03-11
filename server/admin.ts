@@ -1,8 +1,8 @@
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import { db } from "./db.js";
-import { promoCodes, adminLogs, appSettings, users } from "../shared/schema.js";
-import { eq, desc, sql, and, gt } from "drizzle-orm";
+import { promoCodes, adminLogs, appSettings, users, visits } from "../shared/schema.js";
+import { eq, desc, sql, and, gt, gte } from "drizzle-orm";
 
 declare module "express-session" {
   interface SessionData {
@@ -97,20 +97,59 @@ adminRouter.get("/logs", requireAdmin, async (req: Request, res: Response) => {
 
 adminRouter.get("/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
-    const [promoCount] = await db.select({ count: sql<number>`count(*)` }).from(promoCodes).where(eq(promoCodes.active, true));
-    const [logCount] = await db.select({ count: sql<number>`count(*)` }).from(adminLogs);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const paymentLogs = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(adminLogs)
-      .where(eq(adminLogs.category, "payment"));
+    const [
+      [userCount], [promoCount], [logCount], [paidCount], paymentLogs,
+      trafficAgg, [newUsersToday], [newUsersWeek], [newUsersMonth]
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(users),
+      db.select({ count: sql<number>`count(*)` }).from(promoCodes).where(eq(promoCodes.active, true)),
+      db.select({ count: sql<number>`count(*)` }).from(adminLogs),
+      db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.hasPaid, true)),
+      db.select({ count: sql<number>`count(*)` }).from(adminLogs).where(eq(adminLogs.category, "payment")),
+      db.execute(sql`
+        SELECT
+          count(*) as total_views,
+          count(*) FILTER (WHERE created_at >= ${today}) as today_views,
+          count(*) FILTER (WHERE created_at >= ${weekAgo}) as week_views,
+          count(*) FILTER (WHERE created_at >= ${monthAgo}) as month_views,
+          count(DISTINCT session_id) as total_unique,
+          count(DISTINCT session_id) FILTER (WHERE created_at >= ${today}) as today_unique,
+          count(DISTINCT session_id) FILTER (WHERE created_at >= ${weekAgo}) as week_unique,
+          count(DISTINCT session_id) FILTER (WHERE created_at >= ${monthAgo}) as month_unique,
+          count(DISTINCT session_id) FILTER (WHERE created_at >= ${today} AND user_id > 0) as today_auth,
+          count(DISTINCT session_id) FILTER (WHERE created_at >= ${weekAgo} AND user_id > 0) as week_auth,
+          count(DISTINCT session_id) FILTER (WHERE created_at >= ${monthAgo} AND user_id > 0) as month_auth
+        FROM visits
+      `),
+      db.select({ count: sql<number>`count(*)` }).from(users).where(gte(users.createdAt, today)),
+      db.select({ count: sql<number>`count(*)` }).from(users).where(gte(users.createdAt, weekAgo)),
+      db.select({ count: sql<number>`count(*)` }).from(users).where(gte(users.createdAt, monthAgo)),
+    ]);
+
+    const t = (trafficAgg as any).rows?.[0] || trafficAgg[0] || {};
 
     res.json({
       users: Number(userCount.count),
+      paidUsers: Number(paidCount.count),
       activePromos: Number(promoCount.count),
       totalLogs: Number(logCount.count),
       paymentEvents: Number(paymentLogs[0].count),
+      traffic: {
+        today: { views: Number(t.today_views || 0), unique: Number(t.today_unique || 0), auth: Number(t.today_auth || 0), guests: Number(t.today_unique || 0) - Number(t.today_auth || 0) },
+        week: { views: Number(t.week_views || 0), unique: Number(t.week_unique || 0), auth: Number(t.week_auth || 0), guests: Number(t.week_unique || 0) - Number(t.week_auth || 0) },
+        month: { views: Number(t.month_views || 0), unique: Number(t.month_unique || 0), auth: Number(t.month_auth || 0), guests: Number(t.month_unique || 0) - Number(t.month_auth || 0) },
+        total: { views: Number(t.total_views || 0), unique: Number(t.total_unique || 0) },
+      },
+      newUsers: {
+        today: Number(newUsersToday.count),
+        week: Number(newUsersWeek.count),
+        month: Number(newUsersMonth.count),
+      },
     });
   } catch (err) {
     console.error("Stats error:", err);
