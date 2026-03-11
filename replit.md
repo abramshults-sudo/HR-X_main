@@ -128,6 +128,7 @@ Express server on port 3001 with PostgreSQL database:
 - `server/auth.ts` — Auth routes: POST /api/auth/register, POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me
 - `server/routes.ts` — CRUD API: GET/POST/DELETE /api/presets, GET/POST/DELETE /api/results
 - `server/vacancyCache.ts` — Vacancy search with PostgreSQL caching (TTL 3h): POST /api/vacancies/search, GET /api/vacancies/cache-stats
+- `server/ai.ts` — AI resume adaptation via OpenAI ChatGPT: POST /api/ai/adapt
 - `server/storage.ts` — Database access layer (Drizzle ORM)
 - `shared/schema.ts` — Drizzle schema: users, presets, saved_results tables
 
@@ -135,7 +136,29 @@ Auth: email + bcrypt password hashing, express-session with connect-pg-simple (s
 
 Dev command: `concurrently "tsx server/index.ts" "vite"` — runs Express API server and Vite dev server together.
 
-Vite proxies `/api/auth/*`, `/api/presets`, `/api/results`, `/api/admin/*`, `/api/promo/*` to Express on port 3001.
+Vite proxies `/api/auth/*`, `/api/presets`, `/api/results`, `/api/admin/*`, `/api/promo/*`, `/api/ai/*` to Express on port 3001.
+
+## AI Resume Adaptation
+
+Route: POST `/api/ai/adapt` (auth-gated). Uses OpenAI GPT-4o-mini.
+
+Flow:
+1. Takes user resume text (built from quiz state) + vacancy description
+2. Sends to GPT with detailed HR-expert prompt (Russian market adapted)
+3. Returns adapted resume + match score + list of changes + match details
+4. Auto-runs hallucination check (compares adapted vs original, flags fabrications)
+5. If hallucinations detected — auto-fixes by removing fabricated data
+
+Prompt features:
+- ATS keyword integration (2-3% density)
+- Achievement quantification with strong action verbs
+- Strict anti-hallucination rules (no fabricated companies, dates, metrics)
+- Russian job market specifics (hh.ru compatibility, date format, education format)
+- Response in structured JSON with matchScore, matchDetails, hallucinationCheck
+
+API key: read from `OPENAI_API_KEY` env var or `app_settings` table (admin panel).
+
+Frontend: `src/pages/AdaptResult.tsx` — real-time AI adaptation with loading state, match visualization, changes list, hallucination check results, copy button.
 
 ## Admin Panel
 

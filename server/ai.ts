@@ -1,0 +1,359 @@
+import { Router, Request, Response } from "express";
+import OpenAI from "openai";
+import { requireAuth } from "./auth.js";
+import { db } from "./db.js";
+import { appSettings } from "../shared/schema.js";
+import { eq } from "drizzle-orm";
+import { addLog } from "./admin.js";
+
+function getOpenAiKey(): string {
+  return process.env.OPENAI_API_KEY || "";
+}
+
+async function loadKeyFromDb(): Promise<string> {
+  try {
+    const [row] = await db
+      .select()
+      .from(appSettings)
+      .where(eq(appSettings.key, "OPENAI_API_KEY"));
+    if (row?.value) {
+      process.env.OPENAI_API_KEY = row.value;
+      return row.value;
+    }
+  } catch {}
+  return getOpenAiKey();
+}
+
+function buildAdaptPrompt(resumeText: string, vacancyText: string): string {
+  return `Ты — профессиональный HR-консультант и эксперт по резюме для российского рынка труда. Твоя задача — адаптировать резюме кандидата под конкретную вакансию.
+
+## Общие принципы адаптации
+
+1. **Краткость**: излагай информацию сжато, без "воды". Один пункт = одна мысль. Избегай причастных и деепричастных оборотов. Резюме должно помещаться на 1-2 страницы.
+2. **Конкретность**: заменяй общие фразы на измеримые достижения. Например: "Работал с клиентами" → "Обслуживал 50+ клиентов ежедневно".
+3. **Релевантность**: содержание должно соответствовать требованиям вакансии. Нерелевантный опыт можно сократить или убрать. Порядок разделов и пунктов — по важности для вакансии.
+4. **Правдивость**: НЕ преувеличивай опыт и навыки. НЕ выдумывай факты, даты, компании. НЕ добавляй то, чего не было.
+5. **Деловой стиль**: исключи юмор, сленг, восклицательные знаки. Используй профессиональную лексику. Избегай местоимения "я".
+
+## Алгоритм адаптации
+
+### Шаг 1: Анализ вакансии
+- Выдели ключевые требования
+- Определи обязательные и желательные навыки
+- Запиши ключевые слова (технологии, инструменты, термины)
+
+### Шаг 2: Название должности
+- Должно соответствовать или быть близким к названию в вакансии
+- Без грейдов (Junior/Middle/Senior), если в вакансии их нет
+- Стандартное название, понятное ATS-системам
+
+### Шаг 3: Интеграция ключевых слов
+- Естественно встрой ключевые слова из вакансии
+- Плотность: 2-3% от объёма текста
+- Не переборщи — текст должен читаться естественно
+
+### Шаг 4: Приоритизация опыта
+- Релевантные обязанности и проекты — в начало
+- Менее релевантные — в конец или убрать
+- Используй обратную хронологию
+
+### Шаг 5: Квантификация достижений
+- Добавь цифры, проценты, конкретные результаты (только если они есть в оригинале)
+- Свяжи с бизнес-результатом
+- Используй сильные глаголы: увеличил, сократил, оптимизировал, разработал, внедрил, автоматизировал, управлял, координировал, обучил
+
+### Шаг 6: Удаление лишнего
+- Убери информацию, не относящуюся к вакансии
+- Удали устаревший опыт (>10 лет назад, если не критичен)
+- Сократи очевидное
+
+## Структура адаптированного резюме
+
+1. **Желаемая должность** — одна строка, соответствует вакансии
+2. **Профессиональное резюме** — 2-3 предложения: ключевые компетенции, годы опыта, главное достижение
+3. **Опыт работы** — обратная хронология, для каждой позиции: компания, должность, период, 3-5 пунктов (обязанности + достижения)
+4. **Образование** — вуз, факультет, специальность, год
+5. **Ключевые навыки** — только релевантные для вакансии
+6. **О себе** — 1-2 предложения (опционально)
+
+## Что НЕ включать
+- Семейное положение, возраст, национальность
+- Хобби (если не связаны с работой)
+- Очевидные навыки: MS Office, "уверенный пользователь ПК", "работа в команде"
+- Нерелевантный опыт работы
+- Причины увольнения
+- Зарплатные ожидания
+- "Рекомендации предоставлю по запросу"
+
+## Работа с ATS
+- Используй стандартные названия разделов
+- Включи ключевые слова из вакансии
+- Избегай таблиц, колонок, графики
+
+## КРИТИЧЕСКИ ВАЖНО — ЗАПРЕТ ГАЛЛЮЦИНАЦИЙ
+- СТРОГО ЗАПРЕЩЕНО выдумывать факты, компании, должности, проекты или навыки
+- СТРОГО ЗАПРЕЩЕНО добавлять образование, сертификаты или курсы, которых нет в оригинале
+- СТРОГО ЗАПРЕЩЕНО придумывать метрики и цифры
+- Используй ТОЛЬКО информацию из оригинального резюме
+- Можно: перефразировать, реструктурировать, приоритизировать
+- Нельзя: добавлять то, чего не было в оригинале
+
+## Формат ответа
+
+Ответ СТРОГО в JSON:
+{
+  "adaptedResume": "полный текст адаптированного резюме",
+  "changes": ["изменение 1", "изменение 2", ...],
+  "matchScore": число от 0 до 100,
+  "matchDetails": {
+    "matched": ["совпавшее требование 1", ...],
+    "partial": ["частично совпавшее 1", ...],
+    "missing": ["отсутствующее требование 1", ...]
+  }
+}
+
+Где:
+- adaptedResume — полный текст адаптированного резюме
+- changes — список конкретных изменений, которые ты внёс
+- matchScore — процент совпадения резюме с вакансией (объективная оценка)
+- matchDetails — детализация: что совпало, что частично, чего не хватает
+
+---
+
+## РЕЗЮМЕ КАНДИДАТА:
+${resumeText}
+
+## ВАКАНСИЯ:
+${vacancyText}`;
+}
+
+function buildHallucinationCheckPrompt(
+  originalResume: string,
+  adaptedResume: string,
+): string {
+  return `Ты — детектор галлюцинаций в резюме. Твоя задача — сравнить оригинальное и адаптированное резюме и найти ВЫДУМАННУЮ информацию.
+
+ГАЛЛЮЦИНАЦИИ — это информация в адаптированном резюме, которой НЕТ в оригинале:
+- Выдуманные компании, должности, проекты
+- Несуществующее образование, сертификаты, курсы
+- Придуманные навыки и технологии
+- Фальшивые метрики и достижения
+- Неправдивые даты работы
+
+НЕ СЧИТАЕТСЯ галлюцинацией:
+- Перефразирование существующей информации
+- Реструктуризация разделов
+- Добавление ключевых слов из вакансии к СУЩЕСТВУЮЩИМ навыкам
+- Umbrella-термины (например, NLP вместо "обработка текстов")
+- Обобщение опыта
+
+Ответ СТРОГО в JSON:
+{
+  "score": число от 0 до 100,
+  "hallucinations": ["описание галлюцинации 1", ...],
+  "verdict": "PASSED" или "FAILED"
+}
+
+Где score: 100 = всё из оригинала, 0 = много выдумок.
+Verdict: PASSED если score >= 85, иначе FAILED.
+
+---
+
+## ОРИГИНАЛЬНОЕ РЕЗЮМЕ:
+${originalResume}
+
+## АДАПТИРОВАННОЕ РЕЗЮМЕ:
+${adaptedResume}`;
+}
+
+const aiRouter = Router();
+
+aiRouter.post("/adapt", requireAuth, async (req: Request, res: Response) => {
+  try {
+    let apiKey = getOpenAiKey();
+    if (!apiKey) {
+      apiKey = await loadKeyFromDb();
+    }
+    if (!apiKey) {
+      res.status(400).json({
+        error:
+          "API-ключ OpenAI не настроен. Попросите администратора добавить ключ в панели управления.",
+      });
+      return;
+    }
+
+    const { resumeText, vacancyText, vacancyTitle, companyName } = req.body;
+
+    if (
+      !resumeText ||
+      typeof resumeText !== "string" ||
+      !vacancyText ||
+      typeof vacancyText !== "string"
+    ) {
+      res.status(400).json({ error: "Текст резюме и описание вакансии обязательны" });
+      return;
+    }
+
+    if (resumeText.length > 15000 || vacancyText.length > 15000) {
+      res.status(400).json({ error: "Текст слишком длинный (максимум 15000 символов)" });
+      return;
+    }
+
+    const vacancyFull = [
+      vacancyTitle ? `Должность: ${vacancyTitle}` : "",
+      companyName ? `Компания: ${companyName}` : "",
+      vacancyText,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const openai = new OpenAI({ apiKey });
+
+    const adaptResponse = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: buildAdaptPrompt(resumeText, vacancyFull),
+        },
+      ],
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+    });
+
+    const adaptContent = adaptResponse.choices[0]?.message?.content;
+    if (!adaptContent) {
+      res.status(500).json({ error: "Пустой ответ от ИИ" });
+      return;
+    }
+
+    let adaptResult: any;
+    try {
+      adaptResult = JSON.parse(adaptContent);
+    } catch {
+      res
+        .status(500)
+        .json({ error: "Ошибка парсинга ответа ИИ" });
+      return;
+    }
+
+    const checkResponse = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: buildHallucinationCheckPrompt(
+            resumeText,
+            adaptResult.adaptedResume || "",
+          ),
+        },
+      ],
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+    });
+
+    const checkContent = checkResponse.choices[0]?.message?.content;
+    let hallucinationCheck: any = { score: 0, hallucinations: [], verdict: "UNKNOWN" };
+    if (checkContent) {
+      try {
+        hallucinationCheck = JSON.parse(checkContent);
+      } catch {}
+    }
+
+    if (hallucinationCheck.verdict === "FAILED" && hallucinationCheck.hallucinations?.length > 0) {
+      const fixPrompt = `Ты адаптировал резюме, но проверка обнаружила галлюцинации (выдуманную информацию). Удали все выдуманные данные и верни исправленный вариант.
+
+Обнаруженные галлюцинации:
+${hallucinationCheck.hallucinations.map((h: string, i: number) => `${i + 1}. ${h}`).join("\n")}
+
+Оригинальное резюме:
+${resumeText}
+
+Адаптированное резюме с галлюцинациями:
+${adaptResult.adaptedResume}
+
+Верни исправленное резюме в JSON:
+{
+  "adaptedResume": "исправленный текст без галлюцинаций",
+  "removedHallucinations": ["что было удалено 1", ...]
+}`;
+
+      const fixResponse = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: fixPrompt }],
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+      });
+
+      const fixContent = fixResponse.choices[0]?.message?.content;
+      if (fixContent) {
+        try {
+          const fixResult = JSON.parse(fixContent);
+          if (fixResult.adaptedResume) {
+            adaptResult.adaptedResume = fixResult.adaptedResume;
+            adaptResult.changes = [
+              ...(adaptResult.changes || []),
+              "Автоматическое исправление: удалены галлюцинации",
+            ];
+            hallucinationCheck.verdict = "FIXED";
+            hallucinationCheck.removedHallucinations =
+              fixResult.removedHallucinations || [];
+          }
+        } catch {}
+      }
+    }
+
+    const tokensUsed =
+      (adaptResponse.usage?.total_tokens || 0) +
+      (checkResponse.usage?.total_tokens || 0);
+
+    addLog(
+      "ai",
+      "resume_adapted",
+      {
+        userId: req.session.userId,
+        vacancyTitle: vacancyTitle || null,
+        matchScore: adaptResult.matchScore,
+        hallucinationVerdict: hallucinationCheck.verdict,
+        tokensUsed,
+      },
+      req.ip,
+      req.session.userId,
+    );
+
+    res.json({
+      adaptedResume: adaptResult.adaptedResume || "",
+      changes: adaptResult.changes || [],
+      matchScore: adaptResult.matchScore || 0,
+      matchDetails: adaptResult.matchDetails || {
+        matched: [],
+        partial: [],
+        missing: [],
+      },
+      hallucinationCheck: {
+        score: hallucinationCheck.score || 0,
+        verdict: hallucinationCheck.verdict || "UNKNOWN",
+        hallucinations: hallucinationCheck.hallucinations || [],
+      },
+    });
+  } catch (err: any) {
+    console.error("AI adapt error:", err);
+
+    if (err?.status === 401 || err?.code === "invalid_api_key") {
+      res.status(400).json({ error: "Неверный API-ключ OpenAI" });
+      return;
+    }
+    if (err?.status === 429) {
+      res.status(429).json({ error: "Превышен лимит запросов OpenAI. Попробуйте позже." });
+      return;
+    }
+    if (err?.status === 402 || err?.code === "insufficient_quota") {
+      res.status(402).json({ error: "Недостаточно средств на аккаунте OpenAI" });
+      return;
+    }
+
+    res.status(500).json({ error: "Ошибка генерации. Попробуйте позже." });
+  }
+});
+
+export { aiRouter };

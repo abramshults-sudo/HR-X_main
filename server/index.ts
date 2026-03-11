@@ -6,6 +6,7 @@ import { authRouter } from "./auth.js";
 import { apiRouter } from "./routes.js";
 import { adminRouter } from "./admin.js";
 import { vacancyRouter } from "./vacancyCache.js";
+import { aiRouter } from "./ai.js";
 import { db } from "./db.js";
 import { sql } from "drizzle-orm";
 
@@ -45,6 +46,7 @@ app.use(
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/vacancies", vacancyRouter);
+app.use("/api/ai", aiRouter);
 app.use("/api", apiRouter);
 
 app.get("/api/health", (_req, res) => {
