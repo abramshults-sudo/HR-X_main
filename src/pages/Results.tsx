@@ -14,7 +14,7 @@ import { downloadPdf, downloadDocx, downloadTxt, exportJobsCsv } from "@/service
 import { ResultsArchive } from "@/components/ResultsArchive";
 import { Paywall, PaywallUpgradeCard, FreeContentBanner } from "@/components/Paywall";
 import { JobCard } from "@/components/JobCard";
-import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Gift, Clock } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Gift, Clock, Sparkles, Copy, Check, Lightbulb } from "lucide-react";
 
 const FREE_PREVIEW_JOBS = 3;
 
@@ -35,6 +35,12 @@ const Results = () => {
   const resumeText = buildResumeText(state.quizState, state.resumeState.resumeMode);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
+  const [aiResume, setAiResume] = useState<string | null>(null);
+  const [aiTips, setAiTips] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiCopied, setAiCopied] = useState(false);
+  const [showAiResume, setShowAiResume] = useState(false);
 
   const loadJobs = useCallback(async (forceRefresh = false) => {
     if (state.quizState.targetRoles.length === 0) {
@@ -59,9 +65,48 @@ const Results = () => {
     }
   }, []);
 
-  const handleExportPdf = () => downloadPdf(resumeText, "resume.pdf");
-  const handleExportDocx = () => downloadDocx(resumeText, "resume.docx");
-  const handleExportTxt = () => downloadTxt(resumeText, "resume.txt");
+  const activeResumeText = showAiResume && aiResume ? aiResume : resumeText;
+
+  const handleExportPdf = () => downloadPdf(activeResumeText, "resume.pdf");
+  const handleExportDocx = () => downloadDocx(activeResumeText, "resume.docx");
+  const handleExportTxt = () => downloadTxt(activeResumeText, "resume.txt");
+
+  const handleAiGenerate = useCallback(async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          quizData: state.quizState,
+          mode: state.resumeState.resumeMode,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiError(data.error || "Ошибка генерации");
+        return;
+      }
+      setAiResume(data.resumeText);
+      setAiTips(data.tips || []);
+      setShowAiResume(true);
+    } catch {
+      setAiError("Ошибка сети. Попробуйте позже.");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [state.quizState, state.resumeState.resumeMode]);
+
+  const handleAiCopy = useCallback(async () => {
+    if (!aiResume) return;
+    try {
+      await navigator.clipboard.writeText(aiResume);
+      setAiCopied(true);
+      setTimeout(() => setAiCopied(false), 2000);
+    } catch {}
+  }, [aiResume]);
 
   const handleExportProfile = () => {
     const { quizState } = state;
@@ -157,11 +202,99 @@ const Results = () => {
 
             {hasPaid ? (
               <>
-                <SectionCard title="Текст резюме">
-                  <div className="whitespace-pre-wrap text-sm" data-testid="text-resume-content">{resumeText}</div>
+                <div className="rounded-card border border-primary/20 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      <span className="font-semibold">ИИ-генерация резюме</span>
+                    </div>
+                    {aiResume && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant={showAiResume ? "hero" : "outline"}
+                          size="sm"
+                          onClick={() => setShowAiResume(true)}
+                        >
+                          ИИ-версия
+                        </Button>
+                        <Button
+                          variant={!showAiResume ? "hero" : "outline"}
+                          size="sm"
+                          onClick={() => setShowAiResume(false)}
+                        >
+                          Шаблон
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    ИИ составит профессиональное резюме на основе ваших данных — живым деловым языком, с правильной структурой и акцентами.
+                  </p>
+                  <Button
+                    variant="hero"
+                    onClick={handleAiGenerate}
+                    disabled={aiLoading}
+                    className="gap-2"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Генерация... 15-20 сек.
+                      </>
+                    ) : aiResume ? (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Сгенерировать заново
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Сгенерировать резюме с ИИ
+                      </>
+                    )}
+                  </Button>
+                  {aiError && (
+                    <p className="text-sm text-destructive">{aiError}</p>
+                  )}
+                </div>
+
+                {aiTips.length > 0 && showAiResume && (
+                  <div className="rounded-card border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Рекомендации по улучшению</span>
+                    </div>
+                    <ul className="list-disc pl-6 space-y-1 text-sm text-amber-700 dark:text-amber-400">
+                      {aiTips.map((tip, i) => (
+                        <li key={i}>{tip}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <SectionCard title={showAiResume && aiResume ? "Резюме (ИИ-версия)" : "Текст резюме"}>
+                  <div className="relative">
+                    {showAiResume && aiResume && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="absolute right-0 top-0"
+                        onClick={handleAiCopy}
+                      >
+                        {aiCopied ? (
+                          <><Check className="mr-1 h-4 w-4" />Скопировано</>
+                        ) : (
+                          <><Copy className="mr-1 h-4 w-4" />Копировать</>
+                        )}
+                      </Button>
+                    )}
+                    <div className={`whitespace-pre-wrap text-sm ${showAiResume && aiResume ? "pt-8" : ""}`} data-testid="text-resume-content">
+                      {activeResumeText}
+                    </div>
+                  </div>
                 </SectionCard>
 
-                {state.resumeState.resumeMode === "ats" && (
+                {state.resumeState.resumeMode === "ats" && !showAiResume && (
                   <SectionCard title="Ключевые слова ATS">
                     <div className="space-y-2">
                       <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950">
@@ -183,7 +316,7 @@ const Results = () => {
                 )}
 
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold">Скачать резюме:</p>
+                  <p className="text-sm font-semibold">Скачать {showAiResume && aiResume ? "ИИ-резюме" : "резюме"}:</p>
                   <p className="text-xs text-muted-foreground">Выберите удобный формат. Файл сохранится на ваше устройство.</p>
                   <div className="grid gap-2 md:grid-cols-3">
                     <Button variant="soft" onClick={handleExportPdf} className="gap-2" data-testid="button-export-pdf">

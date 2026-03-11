@@ -356,4 +356,173 @@ ${adaptResult.adaptedResume}
   }
 });
 
+aiRouter.post("/generate", requireAuth, async (req: Request, res: Response) => {
+  try {
+    let apiKey = getOpenAiKey();
+    if (!apiKey) {
+      apiKey = await loadKeyFromDb();
+    }
+    if (!apiKey) {
+      res.status(400).json({
+        error: "API-ключ OpenAI не настроен. Попросите администратора добавить ключ в панели управления.",
+      });
+      return;
+    }
+
+    const { quizData, mode } = req.body;
+
+    if (!quizData || typeof quizData !== "object") {
+      res.status(400).json({ error: "Данные квиза обязательны" });
+      return;
+    }
+
+    const prompt = buildGeneratePrompt(quizData, mode || "regular");
+
+    const openai = new OpenAI({ apiKey });
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4,
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      res.status(500).json({ error: "Пустой ответ от ИИ" });
+      return;
+    }
+
+    let result: any;
+    try {
+      result = JSON.parse(content);
+    } catch {
+      res.status(500).json({ error: "Ошибка парсинга ответа ИИ" });
+      return;
+    }
+
+    addLog(
+      "ai",
+      "resume_generated",
+      {
+        userId: req.session.userId,
+        mode,
+        tokensUsed: response.usage?.total_tokens || 0,
+      },
+      req.ip,
+      req.session.userId,
+    );
+
+    res.json({
+      resumeText: result.resumeText || "",
+      sections: result.sections || [],
+      tips: result.tips || [],
+    });
+  } catch (err: any) {
+    console.error("AI generate error:", err);
+
+    if (err?.status === 401 || err?.code === "invalid_api_key") {
+      res.status(400).json({ error: "Неверный API-ключ OpenAI" });
+      return;
+    }
+    if (err?.status === 429) {
+      res.status(429).json({ error: "Превышен лимит запросов OpenAI. Попробуйте позже." });
+      return;
+    }
+    if (err?.status === 402 || err?.code === "insufficient_quota") {
+      res.status(402).json({ error: "Недостаточно средств на аккаунте OpenAI" });
+      return;
+    }
+
+    res.status(500).json({ error: "Ошибка генерации. Попробуйте позже." });
+  }
+});
+
+function buildGeneratePrompt(quizData: any, mode: string): string {
+  const roles = (quizData.targetRoles || []).join(", ") || "не указаны";
+  const experience = quizData.totalExperience || "не указан";
+  const region = quizData.region?.name || "не указан";
+  const moscowHours = quizData.moscowHours
+    ? `${quizData.moscowHours.from}–${quizData.moscowHours.to}`
+    : "не указаны";
+  const activities = (quizData.activities || []).join(", ") || "не указаны";
+  const orgTypes = (quizData.organizationTypes || []).join(", ") || "не указаны";
+  const documentTypes = (quizData.documentTypes || []).join(", ") || "не указаны";
+  const professionalSkills = (quizData.professionalSkills || []).join(", ") || "не указаны";
+  const schedules = (quizData.schedules || []).join(", ") || "не указаны";
+  const employmentTypes = (quizData.employmentTypes || []).join(", ") || "не указаны";
+  const salaryMin = quizData.salaryMin || "не указана";
+  const restrictions = (quizData.restrictions || []).join(", ") || "нет";
+
+  const programEntries = Object.entries(quizData.programLevels || {})
+    .filter(([, level]) => level !== "none")
+    .map(([prog, level]) => {
+      const labels: Record<string, string> = {
+        advanced: "продвинутый",
+        confident: "уверенный",
+        basic: "базовый",
+      };
+      return `${prog} (${labels[level as string] || level})`;
+    });
+  const programs = programEntries.length > 0 ? programEntries.join(", ") : "не указаны";
+
+  const atsInstruction = mode === "ats"
+    ? `\n\nДОПОЛНИТЕЛЬНО ДЛЯ ATS-ВЕРСИИ:
+- Добавь в конец раздел "КЛЮЧЕВЫЕ СЛОВА" со списком всех релевантных ключевых слов через запятую
+- Используй стандартные названия разделов: "Профессиональный профиль", "Опыт и компетенции", "Навыки", "Условия работы"
+- Максимально насыщай текст ключевыми словами для поисковых систем (hh.ru, SuperJob)`
+    : "";
+
+  return `Ты — профессиональный HR-консультант и карьерный коуч. Твоя задача — составить профессиональное резюме на основе данных кандидата.
+
+## Принципы составления резюме
+
+1. **Живой язык**: пиши естественным деловым языком, не механическим перечислением. Резюме должно производить впечатление написанного живым профессионалом, а не сгенерированного шаблоном.
+2. **Конкретность**: вместо общих фраз используй конкретные формулировки. Формула: [Глагол действия] + [Что сделал] + [Результат/контекст].
+3. **Структурированность**: чёткие разделы, лёгкое визуальное восприятие, маркированные списки.
+4. **Деловой стиль**: без юмора, сленга, восклицаний. Профессиональная лексика. Без местоимения "я".
+5. **Краткость**: один пункт = одна мысль. Избегай "воды" и канцеляризмов.
+
+## Данные кандидата
+
+- Целевые должности: ${roles}
+- Общий опыт: ${experience}
+- Регион: ${region}
+- Доступность по МСК: ${moscowHours}
+- Формат: исключительно удалённая работа
+- Направления деятельности: ${activities}
+- Типы организаций: ${orgTypes}
+- Работа с документами: ${documentTypes}
+- Программное обеспечение: ${programs}
+- Профессиональные навыки: ${professionalSkills}
+- График: ${schedules}
+- Тип занятости: ${employmentTypes}
+- Ожидания по доходу: ${salaryMin}
+- Ограничения: ${restrictions}
+
+## Сильные глаголы для достижений
+Увеличил, сократил, оптимизировал, разработал, внедрил, автоматизировал, управлял, координировал, руководил, проанализировал, исследовал, выявил, обучил, организовал, контролировал, обеспечил.
+
+## ВАЖНЫЕ ПРАВИЛА
+- Используй ТОЛЬКО данные, предоставленные выше. НЕ выдумывай компании, даты, проекты или метрики.
+- Если данных мало — напиши качественно то, что есть, и укажи в tips, что стоит дополнить.
+- Формулируй опыт и навыки так, чтобы они звучали профессионально, но оставались правдивыми.
+- Для российского рынка: используй формат дат мм.гггг, полные названия, деловой русский.
+${atsInstruction}
+
+## Формат ответа — СТРОГО JSON:
+{
+  "resumeText": "Полный текст резюме, готовый к использованию. Разделы разделены двойными переносами строк. Используй маркеры • для списков.",
+  "sections": [
+    {"title": "Название раздела", "content": "Содержимое раздела"}
+  ],
+  "tips": ["Совет по улучшению 1", "Совет по улучшению 2"]
+}
+
+Где:
+- resumeText — полный текст резюме единым блоком
+- sections — тот же текст, но разбитый по разделам (для интерфейса)
+- tips — 2-5 конкретных рекомендаций, что кандидат может добавить или улучшить (например, "Добавьте конкретные KPI из опыта работы", "Укажите названия компаний и периоды работы")`;
+}
+
 export { aiRouter };
