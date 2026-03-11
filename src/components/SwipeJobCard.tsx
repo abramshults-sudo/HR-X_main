@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from "react";
-import { ExternalLink, MapPin, Briefcase, DollarSign, Building2 } from "lucide-react";
+import { ExternalLink, MapPin, Briefcase, RussianRuble, Building2 } from "lucide-react";
 import type { JobItem } from "@/types/hrx";
 import { CompanyScoreBadge } from "@/components/CompanyScoreBadge";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -104,7 +104,7 @@ export const SwipeJobCard = ({ job, onSave, onArchive, isAnimating, animationDir
 
         <div className="grid grid-cols-2 gap-2">
           <div className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2.5">
-            <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <RussianRuble className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="text-sm font-semibold line-clamp-1" data-testid={`text-swipe-salary-${job.id}`}>{job.salary}</span>
           </div>
           {job.location && (
