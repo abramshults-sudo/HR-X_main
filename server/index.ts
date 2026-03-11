@@ -101,9 +101,14 @@ async function initDb() {
       max_uses INTEGER NOT NULL DEFAULT 0,
       used_count INTEGER NOT NULL DEFAULT 0,
       active BOOLEAN NOT NULL DEFAULT true,
+      comment TEXT,
       expires_at TIMESTAMP,
       created_at TIMESTAMP DEFAULT NOW() NOT NULL
     )
+  `);
+
+  await db.execute(sql`
+    ALTER TABLE promo_codes ADD COLUMN IF NOT EXISTS comment TEXT
   `);
 
   await db.execute(sql`

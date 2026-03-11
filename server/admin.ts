@@ -130,7 +130,7 @@ adminRouter.get("/promos", requireAdmin, async (req: Request, res: Response) => 
 
 adminRouter.post("/promos", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { code, type, value, maxUses, expiresAt } = req.body;
+    const { code, type, value, maxUses, expiresAt, comment } = req.body;
 
     const promoCode = code || crypto.randomBytes(4).toString("hex").toUpperCase();
 
@@ -151,6 +151,7 @@ adminRouter.post("/promos", requireAdmin, async (req: Request, res: Response) =>
       value: parseInt(value) || 0,
       maxUses: parseInt(maxUses) || 0,
       active: true,
+      comment: comment && typeof comment === "string" ? comment.trim().slice(0, 500) : null,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
     }).returning();
 

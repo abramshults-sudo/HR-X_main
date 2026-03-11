@@ -24,6 +24,7 @@ interface PromoCode {
   maxUses: number;
   usedCount: number;
   active: boolean;
+  comment: string | null;
   expiresAt: string | null;
   createdAt: string;
 }
@@ -136,7 +137,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [promosLoading, setPromosLoading] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [settingsLoading, setSettingsLoading] = useState(false);
-  const [newPromo, setNewPromo] = useState({ code: "", type: "discount", value: "10", maxUses: "100", expiresAt: "" });
+  const [newPromo, setNewPromo] = useState({ code: "", type: "discount", value: "10", maxUses: "100", expiresAt: "", comment: "" });
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
@@ -200,10 +201,11 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       value: newPromo.value,
       maxUses: newPromo.maxUses,
       expiresAt: newPromo.expiresAt || undefined,
+      comment: newPromo.comment || undefined,
     });
     if (res.ok) {
       toast({ title: "Промокод создан" });
-      setNewPromo({ code: "", type: "discount", value: "10", maxUses: "100", expiresAt: "" });
+      setNewPromo({ code: "", type: "discount", value: "10", maxUses: "100", expiresAt: "", comment: "" });
       loadPromos();
       loadStats();
     } else {
@@ -393,6 +395,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     <Input type="date" value={newPromo.expiresAt} onChange={e => setNewPromo(p => ({ ...p, expiresAt: e.target.value }))} data-testid="input-promo-expires" />
                   </div>
                 </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground">Комментарий (кому выдан, назначение)</label>
+                  <Input value={newPromo.comment} onChange={e => setNewPromo(p => ({ ...p, comment: e.target.value }))} placeholder="Например: тестовый доступ для Иванова А.А." data-testid="input-promo-comment" />
+                </div>
                 <Button onClick={handleCreatePromo} data-testid="button-create-promo">
                   <Plus className="mr-1 h-4 w-4" /> Создать
                 </Button>
@@ -422,6 +428,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         {" · "}Использований: {promo.usedCount}{promo.maxUses > 0 ? `/${promo.maxUses}` : " (∞)"}
                         {promo.expiresAt ? ` · до ${new Date(promo.expiresAt).toLocaleDateString("ru-RU")}` : ""}
                       </p>
+                      {promo.comment && (
+                        <p className="text-xs text-muted-foreground italic">{promo.comment}</p>
+                      )}
                     </div>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => togglePromo(promo)} data-testid={`button-toggle-promo-${promo.id}`}>

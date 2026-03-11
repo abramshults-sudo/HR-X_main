@@ -36,6 +36,7 @@ export const promoCodes = pgTable("promo_codes", {
   maxUses: integer("max_uses").notNull().default(0),
   usedCount: integer("used_count").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  comment: text("comment"),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
