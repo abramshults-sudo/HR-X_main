@@ -210,7 +210,7 @@ export function PaywallUpgradeCard({ feature }: { feature?: string }) {
   );
 }
 
-export function FreeContentBanner() {
+export function FreeContentBanner({ totalJobs = 0 }: { totalJobs?: number }) {
   return (
     <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30">
       <CardContent className="p-4">
@@ -222,7 +222,7 @@ export function FreeContentBanner() {
             </p>
             <ul className="space-y-0.5 text-sm text-emerald-700 dark:text-emerald-400">
               <li>• Предпросмотр резюме (начало текста)</li>
-              <li>• 3 подходящие вакансии из найденных</li>
+              <li>• 3 подходящие вакансии{totalJobs > 3 ? ` из ${totalJobs} найденных` : " из найденных"}</li>
               <li>• Чек-лист готовности и полезные гайды</li>
             </ul>
           </div>

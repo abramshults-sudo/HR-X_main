@@ -14,7 +14,7 @@ import { downloadPdf, downloadDocx, downloadTxt, exportJobsCsv } from "@/service
 import { ResultsArchive } from "@/components/ResultsArchive";
 import { Paywall, PaywallUpgradeCard, FreeContentBanner } from "@/components/Paywall";
 import { JobCard } from "@/components/JobCard";
-import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Gift, Clock, Sparkles, Copy, Check, Lightbulb } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Gift, Clock, Sparkles, Copy, Check, Lightbulb, Lock, Briefcase, Eye, Search } from "lucide-react";
 
 const FREE_PREVIEW_JOBS = 3;
 
@@ -152,7 +152,7 @@ const Results = () => {
         </button>
         <h1 className="text-[28px] font-bold md:text-[32px]" data-testid="text-results-title">Результаты</h1>
 
-        {!hasPaid && <FreeContentBanner />}
+        {!hasPaid && <FreeContentBanner totalJobs={state.jobsState.jobs.length} />}
 
         <Tabs defaultValue="resume" className="space-y-4">
           <TabsList className="grid h-auto w-full grid-cols-3 gap-2 rounded-card bg-secondary p-2">
@@ -487,22 +487,61 @@ const Results = () => {
               <JobSwiper />
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
-                  <Gift className="h-4 w-4 shrink-0" />
-                  <span className="font-medium">
-                    Бесплатно — {FREE_PREVIEW_JOBS} вакансии из {state.jobsState.jobs.length} найденных
+                <div className="rounded-card border border-primary/20 bg-gradient-to-r from-primary/5 to-emerald-50 dark:from-primary/10 dark:to-emerald-950/30 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                        <Search className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">Найдено вакансий</p>
+                        <p className="text-xs text-muted-foreground">по вашему профилю</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-primary">{state.jobsState.jobs.length}</p>
+                      <p className="text-xs text-muted-foreground">{FREE_PREVIEW_JOBS} из них — бесплатно</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-sm">
+                  <Eye className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                    Бесплатный предпросмотр — {FREE_PREVIEW_JOBS} вакансии:
                   </span>
                 </div>
 
                 {state.jobsState.jobs.slice(0, FREE_PREVIEW_JOBS).map((job) => (
-                  <JobCard key={job.id} job={job} showScoring={state.jobsState.showScoring} />
+                  <JobCard key={job.id} job={job} showScoring={false} />
                 ))}
 
                 {state.jobsState.jobs.length > FREE_PREVIEW_JOBS && (
-                  <div className="rounded-card border border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Ещё <span className="font-semibold text-foreground">{state.jobsState.jobs.length - FREE_PREVIEW_JOBS}</span> вакансий доступны в полной версии
-                    </p>
+                  <div className="rounded-card border-2 border-dashed border-primary/20 bg-gradient-to-b from-muted/50 to-primary/5 p-6 text-center space-y-3">
+                    <div className="flex justify-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                        <Lock className="h-6 w-6 text-primary" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold">
+                        Ещё {state.jobsState.jobs.length - FREE_PREVIEW_JOBS} вакансий
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Подходящие удалённые вакансии подобраны специально под ваш опыт и навыки
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
+                        <Briefcase className="h-3 w-3" /> Свайпер вакансий
+                      </span>
+                      <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
+                        <ShieldCheck className="h-3 w-3" /> Проверка компаний
+                      </span>
+                      <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
+                        <Sparkles className="h-3 w-3" /> ИИ-адаптация резюме
+                      </span>
+                    </div>
                   </div>
                 )}
 
