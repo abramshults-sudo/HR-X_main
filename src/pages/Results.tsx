@@ -12,7 +12,13 @@ import { buildAtsKeywordReport, buildResumeText } from "@/data/mockResumeHelpers
 import { searchAllVacancies } from "@/services/jobApi";
 import { downloadPdf, downloadDocx, downloadTxt, exportJobsCsv } from "@/services/exportResume";
 import { ResultsArchive } from "@/components/ResultsArchive";
-import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Clock, Sparkles, Copy, Check, Lightbulb } from "lucide-react";
+import { JobCard } from "@/components/JobCard";
+import { PaywallUpgradeCard } from "@/components/Paywall";
+import { ResumePreviewCard } from "@/components/ResumePreviewCard";
+import { mockResumePreview } from "@/data/mockResumeHelpers";
+import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Clock, Sparkles, Copy, Check, Lightbulb, Search, Eye, Lock, Briefcase } from "lucide-react";
+
+const FREE_PREVIEW_JOBS = 3;
 
 function formatCacheAge(cachedAt: string): string {
   const diff = Date.now() - new Date(cachedAt).getTime();
@@ -55,21 +61,13 @@ const Results = () => {
   }, [state.quizState, dispatch]);
 
   useEffect(() => {
-    if (!hasPaid) {
-      navigate("/profile", { replace: true });
-    }
-  }, [hasPaid, navigate]);
-
-  useEffect(() => {
-    if (hasPaid && !state.jobsState.searchCompleted && !state.jobsState.isLoading) {
+    if (!state.jobsState.searchCompleted && !state.jobsState.isLoading) {
       loadJobs();
     }
   }, []);
 
   const atsReport = buildAtsKeywordReport(state.quizState);
   const resumeText = buildResumeText(state.quizState, state.resumeState.resumeMode);
-
-  if (!hasPaid) return null;
 
   const activeResumeText = showAiResume && aiResume ? aiResume : resumeText;
 
@@ -148,6 +146,100 @@ const Results = () => {
   };
 
   const jobsLoaded = !state.jobsState.isLoading && !state.jobsState.error && state.jobsState.jobs.length > 0;
+
+  if (!hasPaid) {
+    const totalJobs = state.jobsState.jobs.length;
+    const freeJobs = state.jobsState.jobs.slice(0, FREE_PREVIEW_JOBS);
+
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-3xl space-y-6 md:space-y-8">
+          <button type="button" onClick={() => navigate("/quiz")} className="flex items-center gap-1.5 text-sm font-semibold text-primary" data-testid="button-back-to-quiz">
+            <ArrowLeft className="h-4 w-4" />
+            Вернуться к квизу
+          </button>
+          <h1 className="text-[28px] font-bold md:text-[32px]">Результаты</h1>
+
+          <ResumePreviewCard preview={mockResumePreview} />
+
+          {state.jobsState.isLoading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-8" data-testid="status-jobs-loading">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground">Ищем вакансии на hh.ru и trudvsem.ru...</p>
+              <p className="text-sm text-muted-foreground">Это может занять 10–15 секунд</p>
+            </div>
+          ) : state.jobsState.error ? (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <p className="text-sm text-muted-foreground">{state.jobsState.error}</p>
+              <Button variant="outline" size="sm" onClick={() => loadJobs()}>Попробовать снова</Button>
+            </div>
+          ) : totalJobs > 0 ? (
+            <div className="space-y-4">
+              <div className="rounded-card border border-primary/20 bg-gradient-to-r from-primary/5 to-emerald-50 dark:from-primary/10 dark:to-emerald-950/30 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <Search className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Найдено вакансий</p>
+                      <p className="text-xs text-muted-foreground">по вашему профилю</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-primary">{totalJobs}</p>
+                    <p className="text-xs text-muted-foreground">{FREE_PREVIEW_JOBS} из них — бесплатно</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm">
+                <Eye className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                  Бесплатный предпросмотр — {FREE_PREVIEW_JOBS} вакансии:
+                </span>
+              </div>
+
+              {freeJobs.map((job) => (
+                <JobCard key={job.id} job={job} showScoring={false} />
+              ))}
+
+              {totalJobs > FREE_PREVIEW_JOBS && (
+                <div className="rounded-card border-2 border-dashed border-primary/20 bg-gradient-to-b from-muted/50 to-primary/5 p-6 text-center space-y-3">
+                  <div className="flex justify-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                      <Lock className="h-6 w-6 text-primary" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">
+                      Ещё {totalJobs - FREE_PREVIEW_JOBS} вакансий
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Подходящие удалённые вакансии подобраны специально под ваш опыт и навыки
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
+                      <Briefcase className="h-3 w-3" /> Свайпер вакансий
+                    </span>
+                    <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
+                      <ShieldCheck className="h-3 w-3" /> Проверка компаний
+                    </span>
+                    <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
+                      <Sparkles className="h-3 w-3" /> ИИ-адаптация резюме
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <PaywallUpgradeCard feature="Полное резюме, все вакансии и скачивание" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

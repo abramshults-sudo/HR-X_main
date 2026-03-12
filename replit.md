@@ -14,7 +14,7 @@ A React/Vite SPA that helps users build a resume and find relevant job listings 
 
 ## Project Structure
 
-- `src/pages/` — Route-level pages (Index, Quiz, Profile, Results, AdaptResult, Dashboard, Readiness, Guides)
+- `src/pages/` — Route-level pages (Index, Quiz, Results, AdaptResult, Dashboard, Readiness, Guides; Profile redirects to Results)
 - `src/components/` — Reusable UI components + shadcn/ui primitives in `ui/`
 - `src/context/hrx-state.tsx` — Global app state (quiz answers, jobs, theme, etc.)
 - `src/data/` — Quiz options, resume helpers, regions, readiness checklist, guides content

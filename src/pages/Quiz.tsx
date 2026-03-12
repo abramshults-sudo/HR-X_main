@@ -70,7 +70,7 @@ const Quiz = () => {
   const goNext = () => {
     if (isLastStep) {
       dispatch({ type: "SET_PROFILE_READY", payload: true });
-      navigate("/profile");
+      navigate("/results");
       return;
     }
 
