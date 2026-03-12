@@ -31,7 +31,6 @@ import {
   targetRoleGroups,
 } from "@/data/quizData";
 import { useHrxState } from "@/context/hrx-state";
-import { PresetManager } from "@/components/PresetManager";
 
 const times = Array.from({ length: 25 }, (_, index) => `${String(index).padStart(2, "0")}:00`);
 
@@ -537,7 +536,6 @@ const Quiz = () => {
               </div>
             ) : null}
 
-            <PresetManager />
           </SectionCard>
         ) : null}
         </div>
