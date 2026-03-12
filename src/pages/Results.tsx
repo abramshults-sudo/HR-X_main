@@ -12,11 +12,7 @@ import { buildAtsKeywordReport, buildResumeText } from "@/data/mockResumeHelpers
 import { searchAllVacancies } from "@/services/jobApi";
 import { downloadPdf, downloadDocx, downloadTxt, exportJobsCsv } from "@/services/exportResume";
 import { ResultsArchive } from "@/components/ResultsArchive";
-import { Paywall, PaywallUpgradeCard, FreeContentBanner } from "@/components/Paywall";
-import { JobCard } from "@/components/JobCard";
-import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Gift, Clock, Sparkles, Copy, Check, Lightbulb, Lock, Briefcase, Eye, Search } from "lucide-react";
-
-const FREE_PREVIEW_JOBS = 3;
+import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Clock, Sparkles, Copy, Check, Lightbulb } from "lucide-react";
 
 function formatCacheAge(cachedAt: string): string {
   const diff = Date.now() - new Date(cachedAt).getTime();
@@ -31,8 +27,7 @@ const Results = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useHrxState();
   const { hasPaid } = useAuth();
-  const atsReport = buildAtsKeywordReport(state.quizState);
-  const resumeText = buildResumeText(state.quizState, state.resumeState.resumeMode);
+
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
   const [aiResume, setAiResume] = useState<string | null>(null);
@@ -60,10 +55,21 @@ const Results = () => {
   }, [state.quizState, dispatch]);
 
   useEffect(() => {
-    if (!state.jobsState.searchCompleted && !state.jobsState.isLoading) {
+    if (!hasPaid) {
+      navigate("/profile", { replace: true });
+    }
+  }, [hasPaid, navigate]);
+
+  useEffect(() => {
+    if (hasPaid && !state.jobsState.searchCompleted && !state.jobsState.isLoading) {
       loadJobs();
     }
   }, []);
+
+  const atsReport = buildAtsKeywordReport(state.quizState);
+  const resumeText = buildResumeText(state.quizState, state.resumeState.resumeMode);
+
+  if (!hasPaid) return null;
 
   const activeResumeText = showAiResume && aiResume ? aiResume : resumeText;
 
@@ -152,8 +158,6 @@ const Results = () => {
         </button>
         <h1 className="text-[28px] font-bold md:text-[32px]" data-testid="text-results-title">Результаты</h1>
 
-        {!hasPaid && <FreeContentBanner totalJobs={state.jobsState.jobs.length} />}
-
         <Tabs defaultValue="resume" className="space-y-4">
           <TabsList className="grid h-auto w-full grid-cols-3 gap-2 rounded-card bg-secondary p-2">
             <TabsTrigger value="resume" className="min-h-[56px] rounded-button text-base" data-testid="tab-resume">Резюме</TabsTrigger>
@@ -200,160 +204,99 @@ const Results = () => {
               </div>
             </div>
 
-            {hasPaid ? (
-              <>
-                <div className="rounded-card border border-primary/20 bg-primary/5 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-primary" />
-                      <span className="font-semibold">ИИ-генерация резюме</span>
-                    </div>
-                    {aiResume && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant={showAiResume ? "hero" : "outline"}
-                          size="sm"
-                          onClick={() => setShowAiResume(true)}
-                        >
-                          ИИ-версия
-                        </Button>
-                        <Button
-                          variant={!showAiResume ? "hero" : "outline"}
-                          size="sm"
-                          onClick={() => setShowAiResume(false)}
-                        >
-                          Шаблон
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    ИИ составит профессиональное резюме на основе ваших данных — живым деловым языком, с правильной структурой и акцентами.
-                  </p>
-                  <Button
-                    variant="hero"
-                    onClick={handleAiGenerate}
-                    disabled={aiLoading}
-                    className="gap-2"
-                  >
-                    {aiLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Генерация... 15-20 сек.
-                      </>
-                    ) : aiResume ? (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Сгенерировать заново
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Сгенерировать резюме с ИИ
-                      </>
-                    )}
-                  </Button>
-                  {aiError && (
-                    <p className="text-sm text-destructive">{aiError}</p>
-                  )}
+            <div className="rounded-card border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <span className="font-semibold">ИИ-генерация резюме</span>
                 </div>
-
-                {aiTips.length > 0 && showAiResume && (
-                  <div className="rounded-card border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Lightbulb className="h-4 w-4 text-amber-600" />
-                      <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Рекомендации по улучшению</span>
-                    </div>
-                    <ul className="list-disc pl-6 space-y-1 text-sm text-amber-700 dark:text-amber-400">
-                      {aiTips.map((tip, i) => (
-                        <li key={i}>{tip}</li>
-                      ))}
-                    </ul>
+                {aiResume && (
+                  <div className="flex gap-2">
+                    <Button variant={showAiResume ? "hero" : "outline"} size="sm" onClick={() => setShowAiResume(true)}>ИИ-версия</Button>
+                    <Button variant={!showAiResume ? "hero" : "outline"} size="sm" onClick={() => setShowAiResume(false)}>Шаблон</Button>
                   </div>
                 )}
-
-                <SectionCard title={showAiResume && aiResume ? "Резюме (ИИ-версия)" : "Текст резюме"}>
-                  <div className="relative">
-                    {showAiResume && aiResume && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="absolute right-0 top-0"
-                        onClick={handleAiCopy}
-                      >
-                        {aiCopied ? (
-                          <><Check className="mr-1 h-4 w-4" />Скопировано</>
-                        ) : (
-                          <><Copy className="mr-1 h-4 w-4" />Копировать</>
-                        )}
-                      </Button>
-                    )}
-                    <div className={`whitespace-pre-wrap text-sm ${showAiResume && aiResume ? "pt-8" : ""}`} data-testid="text-resume-content">
-                      {activeResumeText}
-                    </div>
-                  </div>
-                </SectionCard>
-
-                {state.resumeState.resumeMode === "ats" && !showAiResume && (
-                  <SectionCard title="Ключевые слова ATS">
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950">
-                        <span className="mt-0.5 text-emerald-600">✓</span>
-                        <div>
-                          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Включены в резюме:</p>
-                          <p className="text-sm text-emerald-600 dark:text-emerald-400">{atsReport.included.join(", ")}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950">
-                        <span className="mt-0.5 text-amber-600">!</span>
-                        <div>
-                          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Рекомендуем добавить:</p>
-                          <p className="text-sm text-amber-600 dark:text-amber-400">{atsReport.missing.join(", ")}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </SectionCard>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                ИИ составит профессиональное резюме на основе ваших данных — живым деловым языком, с правильной структурой и акцентами.
+              </p>
+              <Button variant="hero" onClick={handleAiGenerate} disabled={aiLoading} className="gap-2">
+                {aiLoading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" />Генерация... 15-20 сек.</>
+                ) : aiResume ? (
+                  <><Sparkles className="h-4 w-4" />Сгенерировать заново</>
+                ) : (
+                  <><Sparkles className="h-4 w-4" />Сгенерировать резюме с ИИ</>
                 )}
+              </Button>
+              {aiError && <p className="text-sm text-destructive">{aiError}</p>}
+            </div>
 
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold">Скачать {showAiResume && aiResume ? "ИИ-резюме" : "резюме"}:</p>
-                  <p className="text-xs text-muted-foreground">Выберите удобный формат. Файл сохранится на ваше устройство.</p>
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <Button variant="soft" onClick={handleExportPdf} className="gap-2" data-testid="button-export-pdf">
-                      <FileText className="h-4 w-4" />
-                      Скачать PDF
-                    </Button>
-                    <Button variant="soft" onClick={handleExportDocx} className="gap-2" data-testid="button-export-docx">
-                      <FileDown className="h-4 w-4" />
-                      Скачать DOCX
-                    </Button>
-                    <Button variant="soft" onClick={handleExportTxt} className="gap-2" data-testid="button-export-txt">
-                      <FileDown className="h-4 w-4" />
-                      Скачать TXT
-                    </Button>
-                  </div>
+            {aiTips.length > 0 && showAiResume && (
+              <div className="rounded-card border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightbulb className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Рекомендации по улучшению</span>
                 </div>
-              </>
-            ) : (
-              <>
-                <SectionCard title="Предпросмотр резюме">
-                  <div className="flex items-center gap-2 mb-3 text-sm text-emerald-700 dark:text-emerald-400">
-                    <Gift className="h-4 w-4 shrink-0" />
-                    <span className="font-medium">Бесплатно — начало вашего резюме</span>
-                  </div>
-                  <Paywall previewLabel="Полный текст и скачивание — в полной версии">
-                    <div className="whitespace-pre-wrap text-sm" data-testid="text-resume-content">{resumeText}</div>
-                  </Paywall>
-                </SectionCard>
-
-                <PaywallUpgradeCard feature="Полное резюме и скачивание" />
-              </>
+                <ul className="list-disc pl-6 space-y-1 text-sm text-amber-700 dark:text-amber-400">
+                  {aiTips.map((tip, i) => <li key={i}>{tip}</li>)}
+                </ul>
+              </div>
             )}
+
+            <SectionCard title={showAiResume && aiResume ? "Резюме (ИИ-версия)" : "Текст резюме"}>
+              <div className="relative">
+                {showAiResume && aiResume && (
+                  <Button variant="outline" size="sm" className="absolute right-0 top-0" onClick={handleAiCopy}>
+                    {aiCopied ? <><Check className="mr-1 h-4 w-4" />Скопировано</> : <><Copy className="mr-1 h-4 w-4" />Копировать</>}
+                  </Button>
+                )}
+                <div className={`whitespace-pre-wrap text-sm ${showAiResume && aiResume ? "pt-8" : ""}`} data-testid="text-resume-content">
+                  {activeResumeText}
+                </div>
+              </div>
+            </SectionCard>
+
+            {state.resumeState.resumeMode === "ats" && !showAiResume && (
+              <SectionCard title="Ключевые слова ATS">
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950">
+                    <span className="mt-0.5 text-emerald-600">✓</span>
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Включены в резюме:</p>
+                      <p className="text-sm text-emerald-600 dark:text-emerald-400">{atsReport.included.join(", ")}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950">
+                    <span className="mt-0.5 text-amber-600">!</span>
+                    <div>
+                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Рекомендуем добавить:</p>
+                      <p className="text-sm text-amber-600 dark:text-amber-400">{atsReport.missing.join(", ")}</p>
+                    </div>
+                  </div>
+                </div>
+              </SectionCard>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Скачать {showAiResume && aiResume ? "ИИ-резюме" : "резюме"}:</p>
+              <p className="text-xs text-muted-foreground">Выберите удобный формат. Файл сохранится на ваше устройство.</p>
+              <div className="grid gap-2 md:grid-cols-3">
+                <Button variant="soft" onClick={handleExportPdf} className="gap-2" data-testid="button-export-pdf">
+                  <FileText className="h-4 w-4" />Скачать PDF
+                </Button>
+                <Button variant="soft" onClick={handleExportDocx} className="gap-2" data-testid="button-export-docx">
+                  <FileDown className="h-4 w-4" />Скачать DOCX
+                </Button>
+                <Button variant="soft" onClick={handleExportTxt} className="gap-2" data-testid="button-export-txt">
+                  <FileDown className="h-4 w-4" />Скачать TXT
+                </Button>
+              </div>
+            </div>
           </TabsContent>
 
           {/* ── JOBS TAB ── */}
           <TabsContent value="jobs" className="space-y-4">
-            {hasPaid && (
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <label className="flex min-h-[56px] flex-1 items-center justify-between rounded-card border border-border bg-card px-4">
@@ -448,7 +391,6 @@ const Results = () => {
                   )}
                 </div>
               </div>
-            )}
 
             {state.jobsState.isLoading ? (
               <div className="flex flex-col items-center justify-center gap-3 py-12" data-testid="status-jobs-loading">
@@ -483,78 +425,15 @@ const Results = () => {
                   )}
                 </div>
               </div>
-            ) : hasPaid ? (
-              <JobSwiper />
             ) : (
-              <div className="space-y-4">
-                <div className="rounded-card border border-primary/20 bg-gradient-to-r from-primary/5 to-emerald-50 dark:from-primary/10 dark:to-emerald-950/30 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <Search className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">Найдено вакансий</p>
-                        <p className="text-xs text-muted-foreground">по вашему профилю</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-bold text-primary">{state.jobsState.jobs.length}</p>
-                      <p className="text-xs text-muted-foreground">{FREE_PREVIEW_JOBS} из них — бесплатно</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm">
-                  <Eye className="h-4 w-4 shrink-0 text-emerald-600" />
-                  <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                    Бесплатный предпросмотр — {FREE_PREVIEW_JOBS} вакансии:
-                  </span>
-                </div>
-
-                {state.jobsState.jobs.slice(0, FREE_PREVIEW_JOBS).map((job) => (
-                  <JobCard key={job.id} job={job} showScoring={false} />
-                ))}
-
-                {state.jobsState.jobs.length > FREE_PREVIEW_JOBS && (
-                  <div className="rounded-card border-2 border-dashed border-primary/20 bg-gradient-to-b from-muted/50 to-primary/5 p-6 text-center space-y-3">
-                    <div className="flex justify-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                        <Lock className="h-6 w-6 text-primary" />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold">
-                        Ещё {state.jobsState.jobs.length - FREE_PREVIEW_JOBS} вакансий
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Подходящие удалённые вакансии подобраны специально под ваш опыт и навыки
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
-                        <Briefcase className="h-3 w-3" /> Свайпер вакансий
-                      </span>
-                      <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
-                        <ShieldCheck className="h-3 w-3" /> Проверка компаний
-                      </span>
-                      <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
-                        <Sparkles className="h-3 w-3" /> ИИ-адаптация резюме
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <PaywallUpgradeCard feature="Все вакансии и фильтры" />
-              </div>
+              <JobSwiper />
             )}
           </TabsContent>
 
           {/* ── EXPORT TAB ── */}
           <TabsContent value="more" className="space-y-4">
-            {hasPaid && <ResultsArchive />}
+            <ResultsArchive />
 
-            {hasPaid ? (
               <SectionCard title="Экспорт данных">
                 <p className="text-sm text-muted-foreground mb-3">Скачайте ваш профиль или список вакансий на устройство.</p>
                 <div className="grid gap-2 md:grid-cols-2">
@@ -578,9 +457,6 @@ const Results = () => {
                   </Button>
                 </div>
               </SectionCard>
-            ) : (
-              <PaywallUpgradeCard feature="Экспорт и архив" />
-            )}
 
             <SectionCard title="Как пользоваться приложением">
               <div className="space-y-3 text-sm text-muted-foreground">
