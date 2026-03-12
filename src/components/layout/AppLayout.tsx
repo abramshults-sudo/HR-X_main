@@ -15,7 +15,7 @@ export const AppLayout = ({ children, centered = false }: AppLayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 pb-4 pt-6 md:px-6">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 pb-2 pt-3 md:pb-4 md:pt-6 md:px-6">
         <Link to="/" className="text-2xl font-extrabold text-primary">
           HR-X
         </Link>
@@ -53,7 +53,7 @@ export const AppLayout = ({ children, centered = false }: AppLayoutProps) => {
           <ThemeToggle />
         </div>
       </header>
-      <main className={centered ? "mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-[540px] flex-col px-4 pb-10" : "mx-auto w-full max-w-5xl px-4 pb-10 md:px-6"}>
+      <main className={centered ? "mx-auto flex min-h-[calc(100vh-56px)] md:min-h-[calc(100vh-88px)] w-full max-w-[540px] flex-col px-4 pb-6 md:pb-10" : "mx-auto w-full max-w-5xl px-4 pb-6 md:pb-10 md:px-6"}>
         {children}
       </main>
     </div>
