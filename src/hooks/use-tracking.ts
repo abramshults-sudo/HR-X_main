@@ -6,6 +6,8 @@ export function useTracking() {
   const lastTracked = useRef("");
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+
     const path = location.pathname;
     if (path === lastTracked.current) return;
     lastTracked.current = path;
