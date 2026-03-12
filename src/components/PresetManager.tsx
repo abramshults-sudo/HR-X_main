@@ -1,131 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useAuth } from "@/context/auth-context";
+import { usePresets } from "@/hooks/use-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/context/auth-context";
-import { useHrxState } from "@/context/hrx-state";
-import { useToast } from "@/hooks/use-toast";
 import { Save, FolderOpen, Trash2, Loader2 } from "lucide-react";
-import type { QuizState } from "@/types/hrx";
-
-interface PresetFilters {
-  hideNotRecommended?: boolean;
-  showScoring?: boolean;
-  dateFilter?: "all" | "3" | "7" | "30";
-  resumeMode?: "regular" | "ats";
-}
-
-interface PresetItem {
-  id: number;
-  name: string;
-  quizState: QuizState;
-  filters?: PresetFilters;
-  createdAt: string;
-}
 
 export const PresetManager = () => {
   const { user } = useAuth();
-  const { state, dispatch } = useHrxState();
-  const { toast } = useToast();
-  const [presets, setPresets] = useState<PresetItem[]>([]);
+  const { presets, isLoading, isSaving, applyPreset, savePreset, deletePreset } = usePresets();
   const [presetName, setPresetName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [showSave, setShowSave] = useState(false);
 
-  useEffect(() => {
-    if (user) loadPresets();
-  }, [user]);
-
-  const loadPresets = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch("/api/presets", { credentials: "include" });
-      if (res.ok) {
-        const raw = await res.json();
-        const data = raw.map((p: any) => {
-          const filters = p.quizState?._filters || undefined;
-          const quizState = { ...p.quizState };
-          delete quizState._filters;
-          return { ...p, quizState, filters };
-        });
-        setPresets(data);
-      } else if (res.status === 401) {
-        setPresets([]);
-      } else {
-        toast({ title: "Ошибка", description: "Не удалось загрузить пресеты", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Ошибка", description: "Ошибка сети при загрузке пресетов", variant: "destructive" });
-    }
-    setIsLoading(false);
-  };
-
   const handleSave = async () => {
-    if (!presetName.trim()) return;
-    setIsSaving(true);
-    try {
-      const filters: PresetFilters = {
-        hideNotRecommended: state.jobsState.hideNotRecommended,
-        showScoring: state.jobsState.showScoring,
-        dateFilter: state.jobsState.dateFilter,
-        resumeMode: state.resumeState.resumeMode,
-      };
-      const res = await fetch("/api/presets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name: presetName.trim(), quizState: state.quizState, filters }),
-      });
-      if (res.ok) {
-        toast({ title: "Пресет сохранён", description: `"${presetName.trim()}" сохранён в вашем аккаунте` });
-        setPresetName("");
-        setShowSave(false);
-        loadPresets();
-      } else {
-        const data = await res.json();
-        toast({ title: "Ошибка", description: data.error, variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Ошибка", description: "Не удалось сохранить", variant: "destructive" });
-    }
-    setIsSaving(false);
-  };
-
-  const handleLoad = (preset: PresetItem) => {
-    dispatch({ type: "LOAD_QUIZ_STATE", payload: preset.quizState as QuizState });
-    if (preset.filters) {
-      if (preset.filters.hideNotRecommended !== undefined) {
-        if (preset.filters.hideNotRecommended !== state.jobsState.hideNotRecommended) {
-          dispatch({ type: "TOGGLE_HIDE_NOT_RECOMMENDED" });
-        }
-      }
-      if (preset.filters.showScoring !== undefined) {
-        if (preset.filters.showScoring !== state.jobsState.showScoring) {
-          dispatch({ type: "TOGGLE_SHOW_SCORING" });
-        }
-      }
-      if (preset.filters.dateFilter) {
-        dispatch({ type: "SET_DATE_FILTER", payload: preset.filters.dateFilter });
-      }
-      if (preset.filters.resumeMode) {
-        dispatch({ type: "SET_RESUME_MODE", payload: preset.filters.resumeMode });
-      }
-    }
-    toast({ title: "Пресет загружен", description: `"${preset.name}" — данные квиза и фильтры восстановлены` });
-  };
-
-  const handleDelete = async (preset: PresetItem) => {
-    try {
-      const res = await fetch(`/api/presets/${preset.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (res.ok) {
-        toast({ title: "Удалено", description: `Пресет "${preset.name}" удалён` });
-        loadPresets();
-      }
-    } catch {
-      toast({ title: "Ошибка", description: "Не удалось удалить", variant: "destructive" });
+    const ok = await savePreset(presetName);
+    if (ok) {
+      setPresetName("");
+      setShowSave(false);
     }
   };
 
@@ -196,7 +86,7 @@ export const PresetManager = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleLoad(preset)}
+                  onClick={() => applyPreset(preset)}
                   data-testid={`button-load-preset-${preset.id}`}
                 >
                   <FolderOpen className="h-4 w-4" />
@@ -204,7 +94,7 @@ export const PresetManager = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleDelete(preset)}
+                  onClick={() => deletePreset(preset)}
                   data-testid={`button-delete-preset-${preset.id}`}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />

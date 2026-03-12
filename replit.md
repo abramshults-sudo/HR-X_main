@@ -22,6 +22,7 @@ A React/Vite SPA that helps users build a resume and find relevant job listings 
   - `regions.ts` — Region catalog sorted alphabetically
   - `mockResumeHelpers.ts` — Resume text builder from quiz state
 - `src/hooks/use-tracking.ts` — Page view tracking hook (sends to /api/track on navigation)
+- `src/hooks/use-presets.ts` — Shared preset logic hook (load/save/delete/apply presets, used by HomePresets and PresetManager)
 - `src/services/` — API integration layer
   - `jobApi.ts` — Frontend vacancy search client: builds search params from QuizState, calls backend `/api/vacancies/search`, applies scoring/filtering/normalization client-side
   - `regionMapping.ts` — Maps app region IDs to hh.ru area IDs and trudvsem region codes

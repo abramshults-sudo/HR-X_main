@@ -35,7 +35,7 @@ type Action =
   | { type: "DECIDE_JOB"; payload: { id: string; decision: SwipeDecision } }
   | { type: "UNDO_LAST_SWIPE" }
   | { type: "SET_SORT_MODE"; payload: JobSortMode }
-  | { type: "LOAD_QUIZ_STATE"; payload: QuizState };
+  | { type: "LOAD_QUIZ_STATE"; payload: QuizState; targetStep?: QuizState["currentStep"] };
 
 const initialState: HrxState = {
   quizState: {
@@ -235,7 +235,7 @@ const reducer = (state: HrxState, action: Action): HrxState => {
     case "LOAD_QUIZ_STATE":
       return {
         ...state,
-        quizState: { ...action.payload, currentStep: 1 },
+        quizState: { ...action.payload, currentStep: action.targetStep ?? 1 },
         jobsState: { ...state.jobsState, searchCompleted: false },
       };
     default:

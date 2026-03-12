@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { HomePresets } from "@/components/HomePresets";
 import { FileText, Search, Shield, Clock, Users, ClipboardCheck, BookOpen } from "lucide-react";
 
 const benefits = [
@@ -79,6 +80,8 @@ const Index = () => {
           <Users className="h-3.5 w-3.5" />
           <span>Более 2 000 человек уже составили резюме с HR-X</span>
         </div>
+
+        <HomePresets />
 
         <div className="mx-auto h-px w-16 rounded-full bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20" />
 
