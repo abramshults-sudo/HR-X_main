@@ -59,6 +59,7 @@ const Quiz = () => {
     }
 
     dispatch({ type: "SET_STEP", payload: (quizState.currentStep + 1) as typeof quizState.currentStep });
+    window.scrollTo(0, 0);
   };
 
   const goBack = () => {
@@ -67,6 +68,7 @@ const Quiz = () => {
       return;
     }
     dispatch({ type: "SET_STEP", payload: (quizState.currentStep - 1) as typeof quizState.currentStep });
+    window.scrollTo(0, 0);
   };
 
   return (
