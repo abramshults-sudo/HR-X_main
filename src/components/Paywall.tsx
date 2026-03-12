@@ -155,7 +155,6 @@ export function PaywallUpgradeCard({ feature }: { feature?: string }) {
           <Button
             variant="hero"
             className="w-full text-base"
-            disabled
             data-testid="button-paywall-pay"
           >
             Получить за 300 ₽
@@ -170,18 +169,20 @@ export function PaywallUpgradeCard({ feature }: { feature?: string }) {
             <Ticket className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium">Есть промокод?</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-stretch gap-2">
             <Input
               placeholder="Введите промокод"
               value={promoCode}
               onChange={(e) => setPromoCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handlePromo()}
+              className="h-11"
               data-testid="input-paywall-promo"
             />
             <Button
               variant="outline"
               onClick={handlePromo}
               disabled={promoLoading || !promoCode.trim()}
+              className="h-11 shrink-0"
               data-testid="button-paywall-promo"
             >
               {promoLoading ? (
