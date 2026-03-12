@@ -16,6 +16,7 @@ import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import Readiness from "./pages/Readiness";
 import Guides from "./pages/Guides";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/results" element={<Results />} />
                 <Route path="/results/adapt/:id" element={<AdaptResult />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/readiness" element={<Readiness />} />
                 <Route path="/guides" element={<Guides />} />

@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { LogIn, LogOut, UserCheck } from "lucide-react";
+import { LogIn, LogOut, UserCheck, LayoutDashboard } from "lucide-react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -22,6 +22,16 @@ export const AppLayout = ({ children, centered = false }: AppLayoutProps) => {
         <div className="flex items-center gap-2">
           {user ? (
             <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/dashboard")}
+                data-testid="button-dashboard"
+                className="gap-1"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                <span className="hidden sm:inline">Кабинет</span>
+              </Button>
               <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-sm font-medium text-primary" data-testid="text-user-email">
                 <UserCheck className="h-4 w-4 shrink-0" />
                 <span className="hidden sm:inline max-w-[140px] truncate">{user.email}</span>
@@ -37,7 +47,7 @@ export const AppLayout = ({ children, centered = false }: AppLayoutProps) => {
                 data-testid="button-logout"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="ml-1">Выйти</span>
+                <span className="ml-1 hidden sm:inline">Выйти</span>
               </Button>
             </>
           ) : (
