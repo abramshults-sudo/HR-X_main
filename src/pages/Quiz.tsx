@@ -37,6 +37,12 @@ const toLocalHour = (moscowHour: string, offset: number) => {
   return `${String(localHour).padStart(2, "0")}:00`;
 };
 
+const toMoscowHour = (localHour: string, offset: number) => {
+  const hour = Number.parseInt(localHour.split(":")[0], 10);
+  const mskHour = (hour - offset + 24) % 24;
+  return `${String(mskHour).padStart(2, "0")}:00`;
+};
+
 const Quiz = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useHrxState();
@@ -46,9 +52,19 @@ const Quiz = () => {
   const isLastStep = quizState.currentStep === 6;
   const canGoNext = quizState.currentStep !== 1 || Boolean(quizState.region);
 
-  const localHoursHint = useMemo(() => {
-    if (!quizState.region) return "По вашему местному времени это будет с 09:00 до 18:00";
-    return `По вашему местному времени это будет с ${toLocalHour(quizState.moscowHours.from, quizState.region.timezoneOffset)} до ${toLocalHour(quizState.moscowHours.to, quizState.region.timezoneOffset)}`;
+  const localFrom = useMemo(() => {
+    if (!quizState.region) return quizState.moscowHours.from;
+    return toLocalHour(quizState.moscowHours.from, quizState.region.timezoneOffset);
+  }, [quizState.region, quizState.moscowHours.from]);
+
+  const localTo = useMemo(() => {
+    if (!quizState.region) return quizState.moscowHours.to;
+    return toLocalHour(quizState.moscowHours.to, quizState.region.timezoneOffset);
+  }, [quizState.region, quizState.moscowHours.to]);
+
+  const moscowHoursHint = useMemo(() => {
+    if (!quizState.region || quizState.region.timezoneOffset === 0) return "";
+    return `По Москве: ${quizState.moscowHours.from}–${quizState.moscowHours.to}`;
   }, [quizState.region, quizState.moscowHours]);
 
   const goNext = () => {
@@ -84,11 +100,14 @@ const Quiz = () => {
               <span className="text-muted-foreground">{quizState.region ? `МСК${quizState.region.timezoneOffset >= 0 ? `+${quizState.region.timezoneOffset}` : quizState.region.timezoneOffset}` : ""}</span>
             </Button>
 
-            <p className="text-[17px] font-bold">В какие часы по Москве вы готовы работать?</p>
+            <p className="text-[17px] font-bold">В какие часы по вашему местному времени вы готовы работать?</p>
             <div className="grid gap-3 md:grid-cols-2">
               <select
-                value={quizState.moscowHours.from}
-                onChange={(event) => dispatch({ type: "SET_MOSCOW_HOURS", payload: { ...quizState.moscowHours, from: event.target.value } })}
+                value={localFrom}
+                onChange={(event) => {
+                  const offset = quizState.region?.timezoneOffset ?? 0;
+                  dispatch({ type: "SET_MOSCOW_HOURS", payload: { ...quizState.moscowHours, from: toMoscowHour(event.target.value, offset) } });
+                }}
                 className="min-h-[56px] rounded-button border border-input bg-card px-4 text-foreground"
               >
                 {times.map((time) => (
@@ -96,8 +115,11 @@ const Quiz = () => {
                 ))}
               </select>
               <select
-                value={quizState.moscowHours.to}
-                onChange={(event) => dispatch({ type: "SET_MOSCOW_HOURS", payload: { ...quizState.moscowHours, to: event.target.value } })}
+                value={localTo}
+                onChange={(event) => {
+                  const offset = quizState.region?.timezoneOffset ?? 0;
+                  dispatch({ type: "SET_MOSCOW_HOURS", payload: { ...quizState.moscowHours, to: toMoscowHour(event.target.value, offset) } });
+                }}
                 className="min-h-[56px] rounded-button border border-input bg-card px-4 text-foreground"
               >
                 {times.map((time) => (
@@ -105,7 +127,7 @@ const Quiz = () => {
                 ))}
               </select>
             </div>
-            <p className="text-sm text-muted-foreground">{localHoursHint}</p>
+            {moscowHoursHint && <p className="text-sm text-muted-foreground">{moscowHoursHint}</p>}
           </SectionCard>
         ) : null}
 
