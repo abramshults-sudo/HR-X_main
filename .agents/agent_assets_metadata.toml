@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "tMONU1qbeTMCi_cvS2XbJ"
+uri = "file://HRX_AUDIT.md"
+type = "text"
+title = "HRX — Полный аудит приложения"
