@@ -490,6 +490,7 @@ function buildGeneratePrompt(quizData: any, mode: string): string {
 - Регион: ${region}
 - Доступность по МСК: ${moscowHours}
 - Формат: исключительно удалённая работа
+- Опыт удалённой работы: ${quizData.remoteExperience === "some" ? "есть (начальный уровень)" : "нет"}
 - Направления деятельности: ${activities}
 - Типы организаций: ${orgTypes}
 - Работа с документами: ${documentTypes}

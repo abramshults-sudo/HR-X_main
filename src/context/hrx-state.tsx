@@ -1,8 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from "react";
-import type { HrxState, JobItem, JobMatchStatus, JobSortMode, QuizStep, SwipeDecision, ThemeMode } from "@/types/hrx";
+import type { HrxState, JobItem, JobMatchStatus, JobSortMode, QuizState, QuizStep, RemoteExperience, SwipeDecision, ThemeMode } from "@/types/hrx";
+import {
+  experiencedRoleGroups,
+  experiencedActivityGroups,
+  experiencedSoftwareGroups,
+  experiencedSkillGroups,
+} from "@/data/quizData";
 
 type Action =
   | { type: "SET_THEME"; payload: ThemeMode }
+  | { type: "SET_REMOTE_EXPERIENCE"; payload: RemoteExperience }
   | { type: "SET_STEP"; payload: QuizStep }
   | { type: "SET_REGION"; payload: HrxState["quizState"]["region"] }
   | { type: "SET_MOSCOW_HOURS"; payload: { from: string; to: string } }
@@ -40,6 +47,7 @@ type Action =
 const initialState: HrxState = {
   quizState: {
     currentStep: 1,
+    remoteExperience: "",
     region: null,
     moscowHours: { from: "09:00", to: "18:00" },
     targetRoles: [],
@@ -94,6 +102,22 @@ const reducer = (state: HrxState, action: Action): HrxState => {
   switch (action.type) {
     case "SET_THEME":
       return { ...state, uiState: { ...state.uiState, theme: action.payload } };
+    case "SET_REMOTE_EXPERIENCE": {
+      const newQuiz = { ...state.quizState, remoteExperience: action.payload };
+      if (action.payload !== "some") {
+        const expRoleTitles = new Set(experiencedRoleGroups.flatMap(g => g.roles.map(r => r.title)));
+        const expActivities = new Set(experiencedActivityGroups.flatMap(g => g.items));
+        const expSoftware = new Set(experiencedSoftwareGroups.flatMap(g => g.items));
+        const expSkills = new Set(experiencedSkillGroups.flatMap(g => g.items));
+        newQuiz.targetRoles = newQuiz.targetRoles.filter(r => !expRoleTitles.has(r));
+        newQuiz.activities = newQuiz.activities.filter(a => !expActivities.has(a));
+        newQuiz.professionalSkills = newQuiz.professionalSkills.filter(s => !expSkills.has(s));
+        const cleanedLevels = { ...newQuiz.programLevels };
+        for (const prog of expSoftware) delete cleanedLevels[prog];
+        newQuiz.programLevels = cleanedLevels;
+      }
+      return { ...state, quizState: newQuiz };
+    }
     case "SET_STEP":
       return { ...state, quizState: { ...state.quizState, currentStep: action.payload } };
     case "SET_REGION":
@@ -235,7 +259,7 @@ const reducer = (state: HrxState, action: Action): HrxState => {
     case "LOAD_QUIZ_STATE":
       return {
         ...state,
-        quizState: { ...action.payload, currentStep: action.targetStep ?? 1 },
+        quizState: { ...action.payload, remoteExperience: action.payload.remoteExperience || "", currentStep: action.targetStep ?? 1 },
         jobsState: { ...state.jobsState, searchCompleted: false },
       };
     default:

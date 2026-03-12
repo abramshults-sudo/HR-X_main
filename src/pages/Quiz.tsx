@@ -15,6 +15,10 @@ import {
   documentTypes,
   employmentOptions,
   experienceOptions,
+  experiencedActivityGroups,
+  experiencedRoleGroups,
+  experiencedSkillGroups,
+  experiencedSoftwareGroups,
   organizationTypes,
   professionalSkillGroups,
   quickExclusionOptions,
@@ -47,7 +51,21 @@ const Quiz = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useHrxState();
   const { quizState } = state;
+  const isExperienced = quizState.remoteExperience === "some";
   const [activeGroup, setActiveGroup] = useState<string>(targetRoleGroups[0].group);
+
+  const allRoleGroups = useMemo(() =>
+    isExperienced ? [...targetRoleGroups, ...experiencedRoleGroups] : targetRoleGroups,
+  [isExperienced]);
+  const allActivityGroups = useMemo(() =>
+    isExperienced ? [...activityGroups, ...experiencedActivityGroups] : activityGroups,
+  [isExperienced]);
+  const allSoftwareGroups = useMemo(() =>
+    isExperienced ? [...softwareSkillGroups, ...experiencedSoftwareGroups] : softwareSkillGroups,
+  [isExperienced]);
+  const allSkillGroups = useMemo(() =>
+    isExperienced ? [...professionalSkillGroups, ...experiencedSkillGroups] : professionalSkillGroups,
+  [isExperienced]);
 
   const isLastStep = quizState.currentStep === 6;
   const canGoNext = quizState.currentStep !== 1 || Boolean(quizState.region);
@@ -80,12 +98,64 @@ const Quiz = () => {
 
   const goBack = () => {
     if (quizState.currentStep === 1) {
-      navigate("/");
+      dispatch({ type: "SET_REMOTE_EXPERIENCE", payload: "" });
+      window.scrollTo(0, 0);
       return;
     }
     dispatch({ type: "SET_STEP", payload: (quizState.currentStep - 1) as typeof quizState.currentStep });
     window.scrollTo(0, 0);
   };
+
+  if (!quizState.remoteExperience) {
+    return (
+      <AppLayout>
+        <div className="space-y-6 pb-36 md:space-y-8 md:pb-8">
+          <div className="animate-step-in">
+            <SectionCard title="Ваш опыт удалённой работы">
+              <p className="text-sm text-muted-foreground">
+                Это поможет подобрать подходящие вопросы и варианты. Выберите то, что ближе к вашей ситуации.
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: "SET_REMOTE_EXPERIENCE", payload: "none" })}
+                  className="flex flex-col items-start gap-2 rounded-card border-2 border-border bg-card p-5 text-left transition-colors hover:border-primary/50"
+                  data-testid="button-experience-none"
+                >
+                  <span className="text-2xl">🌱</span>
+                  <span className="text-lg font-bold">Нет опыта удалёнки</span>
+                  <span className="text-sm text-muted-foreground">
+                    Никогда не работал(а) удалённо или только начинаю разбираться
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: "SET_REMOTE_EXPERIENCE", payload: "some" })}
+                  className="flex flex-col items-start gap-2 rounded-card border-2 border-border bg-card p-5 text-left transition-colors hover:border-primary/50"
+                  data-testid="button-experience-some"
+                >
+                  <span className="text-2xl">💼</span>
+                  <span className="text-lg font-bold">Уже работал(а) удалённо</span>
+                  <span className="text-sm text-muted-foreground">
+                    Есть опыт удалённой работы — пусть даже небольшой или на простых задачах
+                  </span>
+                </button>
+              </div>
+            </SectionCard>
+          </div>
+        </div>
+
+        <StickyQuizNav
+          onBack={() => navigate("/")}
+          onHint={() => {}}
+          onNext={() => {}}
+          disableBack={false}
+          disableNext={true}
+          nextLabel="Дальше"
+        />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -134,7 +204,7 @@ const Quiz = () => {
         {quizState.currentStep === 2 ? (
           <SectionCard title={quizSteps[1]}>
             <Accordion type="single" collapsible value={activeGroup} onValueChange={(value) => value && setActiveGroup(value)}>
-              {targetRoleGroups.map((group) => {
+              {allRoleGroups.map((group) => {
                 const selectedInGroup = group.roles.filter((role) => quizState.targetRoles.includes(role.title)).length;
                 return (
                   <AccordionItem key={group.group} value={group.group}>
@@ -228,7 +298,7 @@ const Quiz = () => {
 
             <p className="text-[17px] font-bold pt-2">С какими задачами вы знакомы?</p>
             <Accordion type="multiple" className="space-y-2">
-              {activityGroups.map((group) => (
+              {allActivityGroups.map((group) => (
                 <AccordionItem key={group.group} value={group.group} className="rounded-card border border-border px-4">
                   <AccordionTrigger className="text-base no-underline hover:no-underline">
                     <span className="flex-1 text-left">{group.group}</span>
@@ -276,7 +346,7 @@ const Quiz = () => {
               <p className="text-[17px] font-bold">Программы и уровень</p>
               <p className="text-sm text-muted-foreground">Откройте нужную категорию и выберите уровень для каждой программы.</p>
               <Accordion type="multiple" className="space-y-2">
-                {softwareSkillGroups.map((group) => {
+                {allSoftwareGroups.map((group) => {
                   const filledCount = group.items.filter(p => quizState.programLevels[p] && quizState.programLevels[p] !== "none").length;
                   return (
                     <AccordionItem key={group.group} value={group.group} className="rounded-card border border-border px-4">
@@ -317,7 +387,7 @@ const Quiz = () => {
             <div className="space-y-3">
               <p className="text-[17px] font-bold">Профессиональные навыки</p>
               <Accordion type="multiple" className="space-y-2">
-                {professionalSkillGroups.map((group) => {
+                {allSkillGroups.map((group) => {
                   const selectedCount = group.items.filter(s => quizState.professionalSkills.includes(s)).length;
                   return (
                     <AccordionItem key={group.group} value={group.group} className="rounded-card border border-border px-4">
@@ -421,6 +491,11 @@ const Quiz = () => {
         {quizState.currentStep === 6 ? (
           <SectionCard title={quizSteps[5]}>
             <div className="space-y-3">
+              <SummaryBlock
+                title="Уровень"
+                value={isExperienced ? "Есть опыт удалёнки" : "Без опыта удалёнки"}
+                onEdit={() => dispatch({ type: "SET_REMOTE_EXPERIENCE", payload: "" })}
+              />
               <SummaryBlock title="Локация" value={`${quizState.region?.name ?? "Не выбрано"} · ${quizState.moscowHours.from}–${quizState.moscowHours.to} МСК`} onEdit={() => dispatch({ type: "SET_STEP", payload: 1 })} />
               <SummaryBlock title="Целевые роли" value={quizState.targetRoles.join(", ") || "Пока не выбрано"} onEdit={() => dispatch({ type: "SET_STEP", payload: 2 })} />
               <SummaryBlock title="Опыт" value={quizState.totalExperience || "Пока не заполнено"} onEdit={() => dispatch({ type: "SET_STEP", payload: 3 })} />

@@ -30,16 +30,19 @@ A React/Vite SPA that helps users build a resume and find relevant job listings 
   - `exportResume.ts` — PDF/DOCX/TXT/CSV export
 - `src/types/hrx.ts` — TypeScript types for the app state
 
-## Quiz Structure (v3)
+## Quiz Structure (v4)
 
-6 steps, 10 role groups (47 roles), ~30 software programs, ~27 professional skills:
+Pre-quiz: remote experience level selector ("none" / "some"). 6 steps, 10+1 role groups, ~30+5 software programs, ~27+6 professional skills:
 
+- **Pre-step**: Remote experience level — "Нет опыта удалёнки" or "Уже работал(а) удалённо"
+  - `remoteExperience: "" | "none" | "some"` in QuizState
+  - "some" adds extra role groups, activity groups, software groups, and skill groups from `experiencedRoleGroups`, `experiencedActivityGroups`, `experiencedSoftwareGroups`, `experiencedSkillGroups` in quizData.ts
 1. **Где вы находитесь** — Region + Moscow time hours
-2. **Целевые должности** — 10 role groups with hh.ru professional_role IDs + search keywords, quick exclusion checkboxes, adjacent roles preference
-3. **Опыт работы** — Organization types (9), experience (mapped to hh.ru enum), activities (5 groups), documents (14 types)
-4. **Навыки и программы** — Software skills (7 groups, ~30 programs with level selectors), professional skills (5 groups, ~27 skills)
+2. **Целевые должности** — 10 role groups (+ 1 for experienced) with hh.ru professional_role IDs + search keywords, quick exclusion checkboxes, adjacent roles preference
+3. **Опыт работы** — Organization types (9), experience (mapped to hh.ru enum), activities (5 groups + 1 for experienced), documents (14 types)
+4. **Навыки и программы** — Software skills (7 groups + 1 for experienced), professional skills (5 groups + 1 for experienced)
 5. **Условия и ограничения** — Schedule days (hh.ru work_schedule_by_days), employment type (hh.ru employment), salary min (single-select, mapped to hh.ru salary param), restrictions with NOT keywords
-6. **Проверка** — Summary + "How we'll search" block
+6. **Проверка** — Summary with experience level + "How we'll search" block
 
 ## Job Search Integration
 

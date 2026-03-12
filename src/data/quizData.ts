@@ -126,6 +126,10 @@ export function findRoleOption(title: string): RoleOption | undefined {
     const role = group.roles.find(r => r.title === title);
     if (role) return role;
   }
+  for (const group of experiencedRoleGroups) {
+    const role = group.roles.find(r => r.title === title);
+    if (role) return role;
+  }
   return undefined;
 }
 
@@ -380,4 +384,57 @@ export const restrictionOptions: RestrictionOption[] = [
   { label: "Работа с наличными деньгами", notKeywords: ["работа с наличными", "кассовые операции"] },
   { label: "Ненормированный рабочий день", notKeywords: ["ненормированный"] },
   { label: "Сетевой маркетинг / MLM", notKeywords: ["MLM", "сетевой маркетинг", "пассивный доход"] },
+];
+
+export const experiencedRoleGroups: { group: string; roles: RoleOption[] }[] = [
+  {
+    group: "Координация и организация (удалёнка)",
+    roles: [
+      { title: "Координатор проектов (удалённо)", hhRoleIds: [8, 88], searchKeywords: ["координатор проектов", "проектный координатор"] },
+      { title: "Ассистент руководителя онлайн", hhRoleIds: [110], searchKeywords: ["ассистент руководителя", "онлайн-помощник", "удалённый ассистент"] },
+      { title: "Организатор онлайн-мероприятий", hhRoleIds: [8, 88], searchKeywords: ["организатор мероприятий", "вебинары", "онлайн-мероприятия"] },
+      { title: "Менеджер онлайн-сообщества", hhRoleIds: [3], searchKeywords: ["комьюнити-менеджер", "сообщество", "модерация"] },
+    ],
+  },
+];
+
+export const experiencedActivityGroups: ActivityGroup[] = [
+  {
+    group: "Удалённая работа и онлайн-взаимодействие",
+    items: [
+      "Ведение рабочих чатов и каналов",
+      "Организация и проведение онлайн-встреч",
+      "Работа с задачами в онлайн-досках (Trello, Notion)",
+      "Подготовка отчётов и презентаций в облаке",
+      "Координация работы с коллегами из разных городов",
+      "Ведение базы клиентов или контактов онлайн",
+    ],
+  },
+];
+
+export const experiencedSoftwareGroups: SoftwareGroup[] = [
+  {
+    group: "Инструменты удалённой работы",
+    items: [
+      "Notion",
+      "Miro / онлайн-доски",
+      "Google Календарь",
+      "Планировщики задач (Todoist, TickTick)",
+      "Облачные хранилища (Google Drive, Яндекс.Диск, Dropbox)",
+    ],
+  },
+];
+
+export const experiencedSkillGroups: SkillGroup[] = [
+  {
+    group: "Навыки удалённой работы",
+    items: [
+      "Самоорганизация без постоянного контроля",
+      "Работа с коллегами из разных часовых поясов",
+      "Грамотная переписка в рабочих чатах",
+      "Проведение и участие в видеозвонках",
+      "Ведение рабочих документов в облаке",
+      "Умение разбираться в новых программах самостоятельно",
+    ],
+  },
 ];

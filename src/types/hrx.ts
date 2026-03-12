@@ -8,8 +8,11 @@ export interface RegionItem {
   timezoneOffset: number;
 }
 
+export type RemoteExperience = "" | "none" | "some";
+
 export interface QuizState {
   currentStep: QuizStep;
+  remoteExperience: RemoteExperience;
   region: RegionItem | null;
   moscowHours: {
     from: string;

@@ -54,6 +54,9 @@ export const buildResumeText = (quizState: QuizState, mode: "regular" | "ats"): 
   }
   profileText += `Формат работы: исключительно удалённая занятость. Регион: ${regionName}. `;
   profileText += `Доступность по московскому времени: ${quizState.moscowHours.from}–${quizState.moscowHours.to}.`;
+  if (quizState.remoteExperience === "some") {
+    profileText += `\nИмеется опыт удалённой работы.`;
+  }
 
   if (quizState.activities.length > 0) {
     profileText += `\nОсновные направления деятельности: ${quizState.activities.join(", ").toLowerCase()}.`;
