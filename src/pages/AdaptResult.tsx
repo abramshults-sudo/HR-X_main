@@ -35,7 +35,7 @@ const AdaptResult = () => {
   const [result, setResult] = useState<AdaptResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const job = state.jobs.find((j) => j.id === id);
+  const job = (state.jobsState?.jobs ?? []).find((j) => j.id === id);
 
   const handleAdapt = useCallback(async () => {
     if (!job) return;
