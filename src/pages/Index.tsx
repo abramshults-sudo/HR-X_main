@@ -32,11 +32,16 @@ const Index = () => {
   return (
     <AppLayout centered>
       <section className="my-auto space-y-4 md:space-y-6 text-center">
-        <h1 className="text-[28px] font-bold leading-tight md:text-[36px]" data-testid="text-hero-title">
-          Поможем составить резюме и найти работу
-        </h1>
-        <p className="text-sm text-muted-foreground md:text-lg" data-testid="text-hero-subtitle">
-          Простой опрос на 10 минут — и у вас готовое резюме и список подходящих вакансий
+        <div data-testid="text-hero-title">
+          <h1 className="text-[32px] font-extrabold uppercase tracking-tight leading-none md:text-[44px]">
+            Удалённая работа
+          </h1>
+          <p className="mt-2 text-base font-semibold text-primary md:text-xl" data-testid="text-hero-subtitle">
+            Найдём все вакансии на удалёнке за 10 минут
+          </p>
+        </div>
+        <p className="text-sm text-muted-foreground md:text-base">
+          Пройдите короткий опрос — получите готовое резюме и подборку подходящих вакансий
         </p>
 
         <div className="grid grid-cols-1 gap-1.5 text-left sm:grid-cols-2">
