@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { LogIn, LogOut, User } from "lucide-react";
+import { LogIn, LogOut, UserCheck } from "lucide-react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -22,10 +22,11 @@ export const AppLayout = ({ children, centered = false }: AppLayoutProps) => {
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              <span className="hidden items-center gap-1 text-sm text-muted-foreground sm:flex" data-testid="text-user-email">
-                <User className="h-3.5 w-3.5" />
-                {user.email}
-              </span>
+              <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-sm font-medium text-primary" data-testid="text-user-email">
+                <UserCheck className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline max-w-[140px] truncate">{user.email}</span>
+                <span className="sm:hidden">Вы вошли</span>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -36,18 +37,19 @@ export const AppLayout = ({ children, centered = false }: AppLayoutProps) => {
                 data-testid="button-logout"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="ml-1 hidden sm:inline">Выйти</span>
+                <span className="ml-1">Выйти</span>
               </Button>
             </>
           ) : (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => navigate("/auth")}
               data-testid="button-login"
+              className="gap-1.5"
             >
               <LogIn className="h-4 w-4" />
-              <span className="ml-1">Войти</span>
+              Войти
             </Button>
           )}
           <ThemeToggle />
