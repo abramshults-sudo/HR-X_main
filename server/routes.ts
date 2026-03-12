@@ -20,7 +20,7 @@ apiRouter.get("/presets", requireAuth, async (req: Request, res: Response) => {
 
 apiRouter.post("/presets", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { name, quizState } = req.body;
+    const { name, quizState, filters } = req.body;
     if (!name || typeof name !== "string" || !quizState || typeof quizState !== "object") {
       res.status(400).json({ error: "Название и данные квиза обязательны" });
       return;
@@ -29,11 +29,15 @@ apiRouter.post("/presets", requireAuth, async (req: Request, res: Response) => {
       res.status(400).json({ error: "Название должно быть от 1 до 255 символов" });
       return;
     }
-    const preset = await storage.createPreset({
+    const presetData: any = {
       userId: req.session.userId!,
       name,
       quizState,
-    });
+    };
+    if (filters && typeof filters === "object") {
+      presetData.quizState = { ...quizState, _filters: filters };
+    }
+    const preset = await storage.createPreset(presetData);
     res.json(preset);
   } catch (err) {
     console.error("Create preset error:", err);

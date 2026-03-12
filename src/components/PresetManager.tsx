@@ -7,10 +7,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Save, FolderOpen, Trash2, Loader2 } from "lucide-react";
 import type { QuizState } from "@/types/hrx";
 
+interface PresetFilters {
+  hideNotRecommended?: boolean;
+  showScoring?: boolean;
+  dateFilter?: "all" | "3" | "7" | "30";
+  resumeMode?: "regular" | "ats";
+}
+
 interface PresetItem {
   id: number;
   name: string;
   quizState: QuizState;
+  filters?: PresetFilters;
   createdAt: string;
 }
 
@@ -33,7 +41,13 @@ export const PresetManager = () => {
     try {
       const res = await fetch("/api/presets", { credentials: "include" });
       if (res.ok) {
-        const data = await res.json();
+        const raw = await res.json();
+        const data = raw.map((p: any) => {
+          const filters = p.quizState?._filters || undefined;
+          const quizState = { ...p.quizState };
+          delete quizState._filters;
+          return { ...p, quizState, filters };
+        });
         setPresets(data);
       } else if (res.status === 401) {
         setPresets([]);
@@ -50,11 +64,17 @@ export const PresetManager = () => {
     if (!presetName.trim()) return;
     setIsSaving(true);
     try {
+      const filters: PresetFilters = {
+        hideNotRecommended: state.jobsState.hideNotRecommended,
+        showScoring: state.jobsState.showScoring,
+        dateFilter: state.jobsState.dateFilter,
+        resumeMode: state.resumeState.resumeMode,
+      };
       const res = await fetch("/api/presets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name: presetName.trim(), quizState: state.quizState }),
+        body: JSON.stringify({ name: presetName.trim(), quizState: state.quizState, filters }),
       });
       if (res.ok) {
         toast({ title: "Пресет сохранён", description: `"${presetName.trim()}" сохранён в вашем аккаунте` });
@@ -73,7 +93,25 @@ export const PresetManager = () => {
 
   const handleLoad = (preset: PresetItem) => {
     dispatch({ type: "LOAD_QUIZ_STATE", payload: preset.quizState as QuizState });
-    toast({ title: "Пресет загружен", description: `"${preset.name}" — данные квиза восстановлены` });
+    if (preset.filters) {
+      if (preset.filters.hideNotRecommended !== undefined) {
+        if (preset.filters.hideNotRecommended !== state.jobsState.hideNotRecommended) {
+          dispatch({ type: "TOGGLE_HIDE_NOT_RECOMMENDED" });
+        }
+      }
+      if (preset.filters.showScoring !== undefined) {
+        if (preset.filters.showScoring !== state.jobsState.showScoring) {
+          dispatch({ type: "TOGGLE_SHOW_SCORING" });
+        }
+      }
+      if (preset.filters.dateFilter) {
+        dispatch({ type: "SET_DATE_FILTER", payload: preset.filters.dateFilter });
+      }
+      if (preset.filters.resumeMode) {
+        dispatch({ type: "SET_RESUME_MODE", payload: preset.filters.resumeMode });
+      }
+    }
+    toast({ title: "Пресет загружен", description: `"${preset.name}" — данные квиза и фильтры восстановлены` });
   };
 
   const handleDelete = async (preset: PresetItem) => {
@@ -143,6 +181,15 @@ export const PresetManager = () => {
                 <p className="truncate text-sm font-semibold">{preset.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(preset.createdAt).toLocaleDateString("ru-RU")}
+                  {preset.filters && (
+                    <span className="ml-1 text-muted-foreground/70">
+                      {[
+                        preset.filters.resumeMode === "ats" ? "ATS" : null,
+                        preset.filters.showScoring ? "скоринг" : null,
+                        preset.filters.dateFilter && preset.filters.dateFilter !== "all" ? `${preset.filters.dateFilter}д` : null,
+                      ].filter(Boolean).join(", ") || null}
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="flex gap-1">
