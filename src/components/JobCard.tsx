@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ExternalLink, MapPin, ShieldCheck, ShieldAlert, CheckCircle, AlertTriangle } from "lucide-react";
+import { ChevronDown, ExternalLink, MapPin, ShieldCheck, ShieldAlert, CheckCircle, AlertTriangle, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { JobItem } from "@/types/hrx";
 import { Button } from "@/components/ui/button";
@@ -10,16 +10,33 @@ import { CompanyScoreBadge } from "@/components/CompanyScoreBadge";
 interface JobCardProps {
   job: JobItem;
   showScoring?: boolean;
+  matchScore?: number;
 }
 
-export const JobCard = ({ job, showScoring = false }: JobCardProps) => {
+export const JobCard = ({ job, showScoring = false, matchScore }: JobCardProps) => {
   const [open, setOpen] = useState(false);
 
   return (
     <Card data-testid={`card-job-${job.id}`}>
       <CardContent className="space-y-4 p-4 md:p-5">
         <div className="flex flex-col gap-2">
-          <h3 className="text-xl font-bold" data-testid={`text-job-title-${job.id}`}>{job.title}</h3>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-xl font-bold" data-testid={`text-job-title-${job.id}`}>{job.title}</h3>
+            {matchScore != null && (
+              <span
+                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+                  matchScore >= 60
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300"
+                    : matchScore >= 35
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300"
+                    : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                }`}
+                data-testid={`badge-match-${job.id}`}
+              >
+                {matchScore}% совпадение
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground" data-testid={`text-job-company-${job.id}`}>{job.company}</p>
           <div className="flex flex-wrap items-center gap-2">
             {job.location && (
@@ -37,10 +54,22 @@ export const JobCard = ({ job, showScoring = false }: JobCardProps) => {
           </div>
         </div>
 
-        <Button variant="outline" onClick={() => setOpen((prev) => !prev)} className="w-full justify-between" data-testid={`button-details-${job.id}`}>
-          Подробности
-          <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-        </Button>
+        <div className="grid gap-2 md:grid-cols-2">
+          <Button variant="outline" onClick={() => setOpen((prev) => !prev)} className="justify-between" data-testid={`button-details-${job.id}`}>
+            Подробности
+            <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+          </Button>
+          <Button
+            variant="hero"
+            asChild
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            <Link to={`/results/adapt/${job.id}`} data-testid={`link-adapt-${job.id}`} className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              ИИ адаптация резюме
+            </Link>
+          </Button>
+        </div>
 
         {open ? (
           <div className="space-y-3 rounded-card border border-border bg-secondary p-4 text-sm">
@@ -94,21 +123,16 @@ export const JobCard = ({ job, showScoring = false }: JobCardProps) => {
               </div>
             )}
 
-            <div className="grid gap-2 md:grid-cols-2">
-              {job.url ? (
-                <Button variant="soft" asChild data-testid={`link-vacancy-${job.id}`}>
-                  <a href={job.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                    Открыть на {job.source}
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </Button>
-              ) : (
-                <Button variant="soft" data-testid={`button-vacancy-${job.id}`}>Открыть вакансию</Button>
-              )}
-              <Button variant="hero" asChild>
-                <Link to={`/results/adapt/${job.id}`} data-testid={`link-adapt-${job.id}`}>Адаптировать резюме — 100 руб.</Link>
+            {job.url ? (
+              <Button variant="soft" asChild data-testid={`link-vacancy-${job.id}`}>
+                <a href={job.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                  Открыть на {job.source}
+                  <ExternalLink className="h-4 w-4" />
+                </a>
               </Button>
-            </div>
+            ) : (
+              <Button variant="soft" data-testid={`button-vacancy-${job.id}`}>Открыть вакансию</Button>
+            )}
             <p className="text-muted-foreground" data-testid={`text-job-source-${job.id}`}>Источник: {job.source}</p>
           </div>
         ) : null}

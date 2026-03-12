@@ -1,24 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { JobSwiper } from "@/components/JobSwiper";
 import { SectionCard } from "@/components/SectionCard";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHrxState } from "@/context/hrx-state";
 import { useAuth } from "@/context/auth-context";
-import { buildAtsKeywordReport, buildResumeText } from "@/data/mockResumeHelpers";
+import { buildResumeText } from "@/data/mockResumeHelpers";
 import { searchAllVacancies } from "@/services/jobApi";
 import { downloadPdf, downloadDocx, downloadTxt, exportJobsCsv } from "@/services/exportResume";
 import { ResultsArchive } from "@/components/ResultsArchive";
 import { JobCard } from "@/components/JobCard";
 import { PaywallUpgradeCard } from "@/components/Paywall";
-import { ResumePreviewCard } from "@/components/ResumePreviewCard";
-import { mockResumePreview } from "@/data/mockResumeHelpers";
-import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Clock, Sparkles, Copy, Check, Lightbulb, Search, Eye, Lock, Briefcase } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Clock, Sparkles, Copy, Check, Lightbulb, Search, UserPlus, Briefcase } from "lucide-react";
 
-const FREE_PREVIEW_JOBS = 3;
+const FREE_PREVIEW_JOBS = 8;
 
 function formatCacheAge(cachedAt: string): string {
   const diff = Date.now() - new Date(cachedAt).getTime();
@@ -29,10 +26,70 @@ function formatCacheAge(cachedAt: string): string {
   return `${hours} ч. назад`;
 }
 
+function computeMatchScore(job: import("@/types/hrx").JobItem, quizState: import("@/types/hrx").QuizState): number {
+  let score = 0;
+  let total = 0;
+
+  total += 40;
+  const titleLower = (job.title || "").toLowerCase();
+  const descLower = ((job.description || "") + " " + (job.requirements || "")).toLowerCase();
+  let roleHits = 0;
+  for (const role of quizState.targetRoles) {
+    const keywords = role.toLowerCase().split(/[\s\/,]+/).filter(w => w.length > 2);
+    if (keywords.some(kw => titleLower.includes(kw) || descLower.includes(kw))) {
+      roleHits++;
+    }
+  }
+  if (quizState.targetRoles.length > 0) {
+    score += Math.min(40, (roleHits / Math.max(quizState.targetRoles.length, 1)) * 40);
+  }
+
+  total += 30;
+  let skillHits = 0;
+  const allSkills = [
+    ...quizState.professionalSkills,
+    ...Object.keys(quizState.programLevels).filter(k => quizState.programLevels[k] && quizState.programLevels[k] !== "none"),
+  ];
+  for (const skill of allSkills) {
+    const kws = skill.toLowerCase().split(/[\s\/,]+/).filter(w => w.length > 2);
+    if (kws.some(kw => descLower.includes(kw))) {
+      skillHits++;
+    }
+  }
+  if (allSkills.length > 0) {
+    score += Math.min(30, (skillHits / Math.max(allSkills.length, 1)) * 30);
+  }
+
+  total += 20;
+  if (quizState.salaryMin) {
+    const minSalary = parseInt(quizState.salaryMin.replace(/\D/g, ""), 10);
+    if (!minSalary || minSalary === 0) {
+      score += 20;
+    } else {
+      const salaryText = (job.salary || "").replace(/\s/g, "");
+      const nums = salaryText.match(/\d+/g);
+      if (nums) {
+        const maxJobSalary = Math.max(...nums.map(Number));
+        if (maxJobSalary >= minSalary) score += 20;
+        else if (maxJobSalary >= minSalary * 0.8) score += 10;
+      } else {
+        score += 10;
+      }
+    }
+  } else {
+    score += 20;
+  }
+
+  total += 10;
+  score += 10;
+
+  return Math.round((score / total) * 100);
+}
+
 const Results = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useHrxState();
-  const { hasPaid } = useAuth();
+  const { hasPaid, user } = useAuth();
 
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
@@ -66,9 +123,7 @@ const Results = () => {
     }
   }, []);
 
-  const atsReport = buildAtsKeywordReport(state.quizState);
-  const resumeText = buildResumeText(state.quizState, state.resumeState.resumeMode);
-
+  const resumeText = buildResumeText(state.quizState, "regular");
   const activeResumeText = showAiResume && aiResume ? aiResume : resumeText;
 
   const handleExportPdf = () => downloadPdf(activeResumeText, "resume.pdf");
@@ -85,7 +140,7 @@ const Results = () => {
         credentials: "include",
         body: JSON.stringify({
           quizData: state.quizState,
-          mode: state.resumeState.resumeMode,
+          mode: "regular",
         }),
       });
       const data = await res.json();
@@ -101,7 +156,7 @@ const Results = () => {
     } finally {
       setAiLoading(false);
     }
-  }, [state.quizState, state.resumeState.resumeMode]);
+  }, [state.quizState]);
 
   const handleAiCopy = useCallback(async () => {
     if (!aiResume) return;
@@ -145,27 +200,77 @@ const Results = () => {
     );
   };
 
-  const jobsLoaded = !state.jobsState.isLoading && !state.jobsState.error && state.jobsState.jobs.length > 0;
+  const visibleJobs = useMemo(() => {
+    let filtered = state.jobsState.hideNotRecommended
+      ? state.jobsState.jobs.filter((j) => j.status !== "not_recommended")
+      : state.jobsState.jobs;
+
+    const { dateFilter } = state.jobsState;
+    if (dateFilter !== "all") {
+      const days = parseInt(dateFilter, 10);
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+      filtered = filtered.filter((j) => {
+        if (!j.publishedAt) return true;
+        return new Date(j.publishedAt).getTime() >= cutoff;
+      });
+    }
+
+    if (sourceFilter !== "all") {
+      const sourceMatch = sourceFilter === "hh" ? "hh.ru" : "trudvsem.ru";
+      filtered = filtered.filter((j) => j.source === sourceMatch);
+    }
+
+    return filtered;
+  }, [state.jobsState.jobs, state.jobsState.hideNotRecommended, state.jobsState.dateFilter, sourceFilter]);
+
+  const scoredJobs = useMemo(() => {
+    return visibleJobs
+      .map(job => ({
+        job,
+        matchScore: computeMatchScore(job, state.quizState),
+      }))
+      .sort((a, b) => b.matchScore - a.matchScore);
+  }, [visibleJobs, state.quizState]);
+
+  const [showLowMatch, setShowLowMatch] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<"all" | "hh" | "tv">("all");
+  const highMatchJobs = useMemo(() => scoredJobs.filter(j => j.matchScore >= 20), [scoredJobs]);
+  const lowMatchJobs = useMemo(() => scoredJobs.filter(j => j.matchScore < 20), [scoredJobs]);
+  const displayedScoredJobs = showLowMatch ? scoredJobs : highMatchJobs;
 
   if (!hasPaid) {
     const totalJobs = state.jobsState.jobs.length;
-    const freeJobs = state.jobsState.jobs.slice(0, FREE_PREVIEW_JOBS);
+    const freeJobs = scoredJobs.slice(0, FREE_PREVIEW_JOBS);
+    const remainingCount = totalJobs - FREE_PREVIEW_JOBS;
 
     return (
       <AppLayout>
         <div className="mx-auto max-w-3xl space-y-6 md:space-y-8">
           <button type="button" onClick={() => navigate("/quiz")} className="flex items-center gap-1.5 text-sm font-semibold text-primary" data-testid="button-back-to-quiz">
             <ArrowLeft className="h-4 w-4" />
-            Вернуться к квизу
+            Вернуться к опросу
           </button>
           <h1 className="text-[28px] font-bold md:text-[32px]">Результаты</h1>
 
-          <ResumePreviewCard preview={mockResumePreview} />
+          <SectionCard title="Ваше резюме">
+            <div className="whitespace-pre-wrap text-sm">{resumeText}</div>
+          </SectionCard>
+
+          {!user && (
+            <div className="flex items-start gap-3 rounded-card border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
+              <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Зарегистрируйтесь, чтобы сохранить результаты</p>
+                <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">Ваши данные не потеряются, и вы сможете вернуться к ним в любое время.</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate("/auth")}>Создать аккаунт</Button>
+              </div>
+            </div>
+          )}
 
           {state.jobsState.isLoading ? (
             <div className="flex flex-col items-center justify-center gap-3 py-8" data-testid="status-jobs-loading">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-muted-foreground">Ищем вакансии на hh.ru и trudvsem.ru...</p>
+              <p className="text-muted-foreground">Ищем вакансии по вашим параметрам...</p>
               <p className="text-sm text-muted-foreground">Это может занять 10–15 секунд</p>
             </div>
           ) : state.jobsState.error ? (
@@ -188,54 +293,28 @@ const Results = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-3xl font-bold text-primary">{totalJobs}</p>
-                    <p className="text-xs text-muted-foreground">{FREE_PREVIEW_JOBS} из них — бесплатно</p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-sm">
-                <Eye className="h-4 w-4 shrink-0 text-emerald-600" />
-                <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                  Бесплатный предпросмотр — {FREE_PREVIEW_JOBS} вакансии:
-                </span>
-              </div>
-
-              {freeJobs.map((job) => (
-                <JobCard key={job.id} job={job} showScoring={false} />
+              {freeJobs.map(({ job, matchScore }) => (
+                <JobCard key={job.id} job={job} showScoring={false} matchScore={matchScore} />
               ))}
 
-              {totalJobs > FREE_PREVIEW_JOBS && (
-                <div className="rounded-card border-2 border-dashed border-primary/20 bg-gradient-to-b from-muted/50 to-primary/5 p-6 text-center space-y-3">
-                  <div className="flex justify-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                      <Lock className="h-6 w-6 text-primary" />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold">
-                      Ещё {totalJobs - FREE_PREVIEW_JOBS} вакансий
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Подходящие удалённые вакансии подобраны специально под ваш опыт и навыки
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
-                      <Briefcase className="h-3 w-3" /> Свайпер вакансий
-                    </span>
-                    <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
-                      <ShieldCheck className="h-3 w-3" /> Проверка компаний
-                    </span>
-                    <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1">
-                      <Sparkles className="h-3 w-3" /> ИИ-адаптация резюме
-                    </span>
-                  </div>
+              {remainingCount > 0 && (
+                <div className="rounded-card border border-primary/20 bg-gradient-to-b from-muted/50 to-primary/5 p-6 text-center space-y-3">
+                  <p className="text-lg font-bold">
+                    Найдено ещё {remainingCount} вакансий по вашим параметрам
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Откройте полный список, скачайте резюме и адаптируйте его под каждую вакансию с помощью ИИ
+                  </p>
                 </div>
               )}
             </div>
           ) : null}
 
-          <PaywallUpgradeCard feature="Полное резюме, все вакансии и скачивание" />
+          <PaywallUpgradeCard />
         </div>
       </AppLayout>
     );
@@ -257,45 +336,7 @@ const Results = () => {
             <TabsTrigger value="more" className="min-h-[56px] rounded-button text-base" data-testid="tab-more">Экспорт</TabsTrigger>
           </TabsList>
 
-          {/* ── RESUME TAB ── */}
           <TabsContent value="resume" className="space-y-4">
-            <div className="rounded-card border border-border bg-card p-4 space-y-3">
-              <p className="text-sm font-semibold">Выберите формат резюме:</p>
-              <div className="grid gap-2 md:grid-cols-2">
-                <Button
-                  variant={state.resumeState.resumeMode === "regular" ? "hero" : "outline"}
-                  onClick={() => dispatch({ type: "SET_RESUME_MODE", payload: "regular" })}
-                  className="h-auto min-h-[56px] flex-col items-start gap-1 whitespace-normal px-4 py-3 text-left"
-                  data-testid="button-resume-regular"
-                >
-                  <span className="text-base font-bold">Обычное</span>
-                  <span className="text-xs font-normal opacity-80">Готовый текст для отправки работодателю по электронной почте или через сайт</span>
-                </Button>
-                <Button
-                  variant={state.resumeState.resumeMode === "ats" ? "hero" : "outline"}
-                  onClick={() => dispatch({ type: "SET_RESUME_MODE", payload: "ats" })}
-                  className="h-auto min-h-[56px] flex-col items-start gap-1 whitespace-normal px-4 py-3 text-left"
-                  data-testid="button-resume-ats"
-                >
-                  <span className="text-base font-bold">ATS-версия</span>
-                  <span className="text-xs font-normal opacity-80">Для размещения на hh.ru и других сайтах — содержит ключевые слова для автоматического подбора</span>
-                </Button>
-              </div>
-
-              <div className="flex items-start gap-2 rounded-lg bg-secondary p-3">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                {state.resumeState.resumeMode === "regular" ? (
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-semibold text-foreground">Обычное резюме</span> — это готовый текст, который можно скопировать и отправить работодателю. Подходит для электронной почты, мессенджеров и прямых откликов.
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-semibold text-foreground">ATS-версия</span> — специальный формат для сайтов поиска работы (hh.ru, SuperJob). Содержит ключевые слова, которые помогают системе автоматически подобрать ваше резюме для подходящих вакансий.
-                  </p>
-                )}
-              </div>
-            </div>
-
             <div className="rounded-card border border-primary/20 bg-primary/5 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -349,27 +390,6 @@ const Results = () => {
               </div>
             </SectionCard>
 
-            {state.resumeState.resumeMode === "ats" && !showAiResume && (
-              <SectionCard title="Ключевые слова ATS">
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950">
-                    <span className="mt-0.5 text-emerald-600">✓</span>
-                    <div>
-                      <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Включены в резюме:</p>
-                      <p className="text-sm text-emerald-600 dark:text-emerald-400">{atsReport.included.join(", ")}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950">
-                    <span className="mt-0.5 text-amber-600">!</span>
-                    <div>
-                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Рекомендуем добавить:</p>
-                      <p className="text-sm text-amber-600 dark:text-amber-400">{atsReport.missing.join(", ")}</p>
-                    </div>
-                  </div>
-                </div>
-              </SectionCard>
-            )}
-
             <div className="space-y-2">
               <p className="text-sm font-semibold">Скачать {showAiResume && aiResume ? "ИИ-резюме" : "резюме"}:</p>
               <p className="text-xs text-muted-foreground">Выберите удобный формат. Файл сохранится на ваше устройство.</p>
@@ -387,53 +407,55 @@ const Results = () => {
             </div>
           </TabsContent>
 
-          {/* ── JOBS TAB ── */}
           <TabsContent value="jobs" className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <label className="flex min-h-[56px] flex-1 items-center justify-between rounded-card border border-border bg-card px-4">
-                    <span className="font-semibold">Скрыть не рекомендованные</span>
-                    <Switch
-                      checked={state.jobsState.hideNotRecommended}
-                      onCheckedChange={() => dispatch({ type: "TOGGLE_HIDE_NOT_RECOMMENDED" })}
-                      data-testid="switch-hide-not-recommended"
-                    />
-                  </label>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-[56px] w-[56px] shrink-0"
-                    onClick={() => loadJobs(true)}
-                    disabled={state.jobsState.isLoading}
-                    title="Обновить вакансии (загрузить свежие данные)"
-                    data-testid="button-refresh-jobs"
-                  >
-                    <RefreshCw className={`h-5 w-5 ${state.jobsState.isLoading ? "animate-spin" : ""}`} />
-                  </Button>
+            <div className="flex items-start gap-2 rounded-card border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+              <p className="text-sm text-blue-800 dark:text-blue-300">
+                Нажмите «ИИ адаптация» у любой вакансии — ИИ подготовит резюме специально под неё
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <label className="flex min-h-[56px] flex-1 items-center justify-between rounded-card border border-border bg-card px-4">
+                  <span className="font-semibold">Скрыть не рекомендованные</span>
+                  <Switch
+                    checked={state.jobsState.hideNotRecommended}
+                    onCheckedChange={() => dispatch({ type: "TOGGLE_HIDE_NOT_RECOMMENDED" })}
+                    data-testid="switch-hide-not-recommended"
+                  />
+                </label>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-[56px] w-[56px] shrink-0"
+                  onClick={() => loadJobs(true)}
+                  disabled={state.jobsState.isLoading}
+                  title="Обновить вакансии"
+                  data-testid="button-refresh-jobs"
+                >
+                  <RefreshCw className={`h-5 w-5 ${state.jobsState.isLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+
+              {cachedAt && !state.jobsState.isLoading && (
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground" data-testid="text-cache-info">
+                  <Clock className="h-4 w-4 shrink-0" />
+                  <span>Вакансии обновлены {formatCacheAge(cachedAt)}</span>
+                  {fromCache && (
+                    <button
+                      className="ml-auto text-primary hover:underline font-medium"
+                      onClick={() => loadJobs(true)}
+                      data-testid="button-force-refresh"
+                    >
+                      Обновить
+                    </button>
+                  )}
                 </div>
+              )}
 
-                {cachedAt && !state.jobsState.isLoading && (
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground" data-testid="text-cache-info">
-                    <Clock className="h-4 w-4 shrink-0" />
-                    <span>
-                      {fromCache
-                        ? `Вакансии из кэша (найдены ${formatCacheAge(cachedAt)})`
-                        : `Вакансии загружены ${formatCacheAge(cachedAt)}`
-                      }
-                    </span>
-                    {fromCache && (
-                      <button
-                        className="ml-auto text-primary hover:underline font-medium"
-                        onClick={() => loadJobs(true)}
-                        data-testid="button-force-refresh"
-                      >
-                        Обновить
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <label className="flex min-h-[56px] items-center justify-between rounded-card border border-border bg-card px-4">
+              <div className="flex gap-3">
+                <label className="flex min-h-[56px] flex-1 items-center justify-between rounded-card border border-border bg-card px-4">
                   <span className="font-semibold">Дата публикации</span>
                   <select
                     value={state.jobsState.dateFilter}
@@ -447,47 +469,53 @@ const Results = () => {
                     <option value="30">Последние 30 дней</option>
                   </select>
                 </label>
-
-                <div className="rounded-card border border-border bg-card p-4 space-y-3">
-                  <label className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="h-5 w-5 text-primary" />
-                      <span className="font-semibold">Проверка надёжности компаний</span>
-                    </div>
-                    <Switch
-                      checked={state.jobsState.showScoring}
-                      onCheckedChange={() => dispatch({ type: "TOGGLE_SHOW_SCORING" })}
-                      data-testid="switch-show-scoring"
-                    />
-                  </label>
-
-                  {state.jobsState.showScoring ? (
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <p>Каждая компания получает оценку от 0 до 100 баллов. Мы проверяем:</p>
-                      <ul className="space-y-1 pl-1">
-                        <li className="flex items-start gap-2"><span className="text-emerald-600 shrink-0">+</span> Верификация на hh.ru (компания подтверждена площадкой)</li>
-                        <li className="flex items-start gap-2"><span className="text-emerald-600 shrink-0">+</span> Наличие логотипа и полного профиля</li>
-                        <li className="flex items-start gap-2"><span className="text-emerald-600 shrink-0">+</span> Адекватный уровень зарплаты для должности</li>
-                        <li className="flex items-start gap-2"><span className="text-amber-600 shrink-0">!</span> Подозрительно высокие зарплаты без требований</li>
-                        <li className="flex items-start gap-2"><span className="text-amber-600 shrink-0">!</span> Признаки сетевого маркетинга или финансовых пирамид</li>
-                        <li className="flex items-start gap-2"><span className="text-amber-600 shrink-0">!</span> Расплывчатые описания без конкретных задач</li>
-                      </ul>
-                      <p className="rounded-lg bg-amber-50 p-3 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                        Проверка автоматическая и не гарантирует 100% точности. Всегда изучайте вакансию самостоятельно перед откликом.
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Включите, чтобы видеть оценку надёжности каждой компании и предупреждения о возможных рисках.
-                    </p>
-                  )}
-                </div>
+                <label className="flex min-h-[56px] flex-1 items-center justify-between rounded-card border border-border bg-card px-4">
+                  <span className="font-semibold">Источник</span>
+                  <select
+                    value={sourceFilter}
+                    onChange={(e) => setSourceFilter(e.target.value as "all" | "hh" | "tv")}
+                    className="rounded-lg border border-border bg-background pl-3 pr-8 py-2 text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat"
+                    data-testid="select-source-filter"
+                  >
+                    <option value="all">Все</option>
+                    <option value="hh">hh.ru</option>
+                    <option value="tv">trudvsem.ru</option>
+                  </select>
+                </label>
               </div>
+
+              <div className="rounded-card border border-border bg-card p-4 space-y-3">
+                <label className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    <span className="font-semibold">Проверка надёжности компаний</span>
+                  </div>
+                  <Switch
+                    checked={state.jobsState.showScoring}
+                    onCheckedChange={() => dispatch({ type: "TOGGLE_SHOW_SCORING" })}
+                    data-testid="switch-show-scoring"
+                  />
+                </label>
+
+                {state.jobsState.showScoring ? (
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>Каждая компания получает оценку от 0 до 100 баллов.</p>
+                    <p className="rounded-lg bg-amber-50 p-3 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      Проверка автоматическая и не гарантирует 100% точности. Всегда изучайте вакансию перед откликом.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Включите, чтобы видеть оценку надёжности каждой компании.
+                  </p>
+                )}
+              </div>
+            </div>
 
             {state.jobsState.isLoading ? (
               <div className="flex flex-col items-center justify-center gap-3 py-12" data-testid="status-jobs-loading">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                <p className="text-muted-foreground">Ищем вакансии на hh.ru и trudvsem.ru...</p>
+                <p className="text-muted-foreground">Ищем новые вакансии по вашим параметрам...</p>
                 <p className="text-sm text-muted-foreground">Это может занять 10–15 секунд</p>
               </div>
             ) : state.jobsState.error ? (
@@ -502,72 +530,62 @@ const Results = () => {
                 <div className="space-y-2 text-center">
                   {state.quizState.targetRoles.length === 0 ? (
                     <>
-                      <p className="font-semibold">Для поиска вакансий нужно пройти квиз</p>
-                      <p className="text-sm text-muted-foreground">Вернитесь в квиз и выберите целевые должности на шаге 2. После этого вакансии загрузятся автоматически.</p>
+                      <p className="font-semibold">Для поиска вакансий нужно пройти опрос</p>
+                      <p className="text-sm text-muted-foreground">Вернитесь и выберите целевые должности. После этого вакансии загрузятся автоматически.</p>
                       <Button variant="hero" onClick={() => navigate("/quiz")} className="mt-2" data-testid="button-go-quiz">
-                        Перейти к квизу
+                        Перейти к опросу
                       </Button>
                     </>
                   ) : (
                     <>
                       <p className="font-semibold">Вакансий не найдено</p>
-                      <p className="text-sm text-muted-foreground">Попробуйте нажать кнопку обновления или измените параметры поиска в квизе.</p>
+                      <p className="text-sm text-muted-foreground">Попробуйте обновить или измените параметры поиска.</p>
                       <Button variant="outline" onClick={loadJobs} data-testid="button-search-again">Искать снова</Button>
                     </>
                   )}
                 </div>
               </div>
             ) : (
-              <JobSwiper />
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground" data-testid="text-jobs-count">
+                  Найдено: {displayedScoredJobs.length}{lowMatchJobs.length > 0 && !showLowMatch ? ` (ещё ${lowMatchJobs.length} с низким совпадением)` : ""}
+                </p>
+                {displayedScoredJobs.map(({ job, matchScore }) => (
+                  <JobCard key={job.id} job={job} showScoring={state.jobsState.showScoring} matchScore={matchScore} />
+                ))}
+                {lowMatchJobs.length > 0 && !showLowMatch && (
+                  <Button variant="outline" className="w-full" onClick={() => setShowLowMatch(true)}>
+                    Показать все вакансии (включая с низким совпадением)
+                  </Button>
+                )}
+              </div>
             )}
           </TabsContent>
 
-          {/* ── EXPORT TAB ── */}
           <TabsContent value="more" className="space-y-4">
             <ResultsArchive />
 
-              <SectionCard title="Экспорт данных">
-                <p className="text-sm text-muted-foreground mb-3">Скачайте ваш профиль или список вакансий на устройство.</p>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <Button variant="soft" onClick={handleExportProfile} className="gap-2" data-testid="button-export-profile">
-                    <FileText className="h-4 w-4" />
-                    Скачать профиль
-                  </Button>
-                  <Button
-                    variant="soft"
-                    onClick={handleExportVacancies}
-                    disabled={!hasJobs}
-                    className="gap-2"
-                    data-testid="button-export-vacancies"
-                  >
-                    <FileSpreadsheet className="h-4 w-4" />
-                    {hasJobs
-                      ? savedJobs.length > 0
-                        ? `Скачать сохранённые (${savedJobs.length})`
-                        : `Скачать все вакансии (${state.jobsState.jobs.length})`
-                      : "Сначала найдите вакансии"}
-                  </Button>
-                </div>
-              </SectionCard>
-
-            <SectionCard title="Как пользоваться приложением">
-              <div className="space-y-3 text-sm text-muted-foreground">
-                <div className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">1</span>
-                  <p><span className="font-semibold text-foreground">Квиз</span> — ответьте на вопросы о вашем опыте и пожеланиях. Это занимает 3–5 минут.</p>
-                </div>
-                <div className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">2</span>
-                  <p><span className="font-semibold text-foreground">Резюме</span> — на основе ваших ответов мы составим готовое резюме. Скачайте его в PDF или DOCX.</p>
-                </div>
-                <div className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">3</span>
-                  <p><span className="font-semibold text-foreground">Вакансии</span> — мы автоматически найдём удалённые вакансии с hh.ru и Работа России. Листайте карточки: вправо — сохранить, влево — пропустить.</p>
-                </div>
-                <div className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">4</span>
-                  <p><span className="font-semibold text-foreground">Экспорт</span> — скачайте резюме и список вакансий на ваш компьютер или телефон.</p>
-                </div>
+            <SectionCard title="Экспорт данных">
+              <p className="text-sm text-muted-foreground mb-3">Скачайте ваш профиль или список вакансий на устройство.</p>
+              <div className="grid gap-2 md:grid-cols-2">
+                <Button variant="soft" onClick={handleExportProfile} className="gap-2" data-testid="button-export-profile">
+                  <FileText className="h-4 w-4" />
+                  Скачать профиль
+                </Button>
+                <Button
+                  variant="soft"
+                  onClick={handleExportVacancies}
+                  disabled={!hasJobs}
+                  className="gap-2"
+                  data-testid="button-export-vacancies"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  {hasJobs
+                    ? savedJobs.length > 0
+                      ? `Скачать сохранённые (${savedJobs.length})`
+                      : `Скачать все вакансии (${state.jobsState.jobs.length})`
+                    : "Сначала найдите вакансии"}
+                </Button>
               </div>
             </SectionCard>
 

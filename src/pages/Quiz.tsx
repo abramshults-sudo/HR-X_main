@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { OptionCard } from "@/components/OptionCard";
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { regionCatalog } from "@/data/regions";
 import {
   activityGroups,
-  documentTypes,
   employmentOptions,
   experienceOptions,
   experiencedActivityGroups,
@@ -30,7 +29,8 @@ import {
   stepHelpText,
   targetRoleGroups,
 } from "@/data/quizData";
-import { useHrxState } from "@/context/hrx-state";
+import { useHrxState, loadQuizFromStorage, clearQuizStorage } from "@/context/hrx-state";
+import { RotateCcw, X } from "lucide-react";
 
 const times = Array.from({ length: 25 }, (_, index) => `${String(index).padStart(2, "0")}:00`);
 
@@ -46,12 +46,52 @@ const toMoscowHour = (localHour: string, offset: number) => {
   return `${String(mskHour).padStart(2, "0")}:00`;
 };
 
+function getStepValidation(step: number, quizState: import("@/types/hrx").QuizState): { valid: boolean; message: string } {
+  switch (step) {
+    case 1:
+      if (!quizState.region) return { valid: false, message: "Выберите регион, чтобы продолжить" };
+      return { valid: true, message: "" };
+    case 2:
+      if (quizState.targetRoles.length === 0) return { valid: false, message: "Выберите хотя бы одну целевую должность" };
+      return { valid: true, message: "" };
+    case 3:
+      if (!quizState.totalExperience) return { valid: false, message: "Укажите общий стаж" };
+      return { valid: true, message: "" };
+    default:
+      return { valid: true, message: "" };
+  }
+}
+
 const Quiz = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useHrxState();
   const { quizState } = state;
   const isExperienced = quizState.remoteExperience === "some";
   const [activeGroup, setActiveGroup] = useState<string>(targetRoleGroups[0].group);
+  const [showRestore, setShowRestore] = useState(false);
+  const [validationAttempted, setValidationAttempted] = useState(false);
+
+  useEffect(() => {
+    if (!quizState.remoteExperience) {
+      const saved = loadQuizFromStorage();
+      if (saved && saved.remoteExperience) {
+        setShowRestore(true);
+      }
+    }
+  }, []);
+
+  const handleRestore = () => {
+    const saved = loadQuizFromStorage();
+    if (saved) {
+      dispatch({ type: "LOAD_QUIZ_STATE", payload: saved, targetStep: saved.currentStep });
+    }
+    setShowRestore(false);
+  };
+
+  const handleDiscardRestore = () => {
+    clearQuizStorage();
+    setShowRestore(false);
+  };
 
   const allRoleGroups = useMemo(() =>
     isExperienced ? [...targetRoleGroups, ...experiencedRoleGroups] : targetRoleGroups,
@@ -67,7 +107,9 @@ const Quiz = () => {
   [isExperienced]);
 
   const isLastStep = quizState.currentStep === 6;
-  const canGoNext = quizState.currentStep !== 1 || Boolean(quizState.region);
+
+  const stepValidation = getStepValidation(quizState.currentStep, quizState);
+  const canGoNext = stepValidation.valid;
 
   const localFrom = useMemo(() => {
     if (!quizState.region) return quizState.moscowHours.from;
@@ -85,17 +127,23 @@ const Quiz = () => {
   }, [quizState.region, quizState.moscowHours]);
 
   const goNext = () => {
+    setValidationAttempted(true);
+    if (!canGoNext) return;
+
     if (isLastStep) {
       dispatch({ type: "SET_PROFILE_READY", payload: true });
+      clearQuizStorage();
       navigate("/results");
       return;
     }
 
+    setValidationAttempted(false);
     dispatch({ type: "SET_STEP", payload: (quizState.currentStep + 1) as typeof quizState.currentStep });
     window.scrollTo(0, 0);
   };
 
   const goBack = () => {
+    setValidationAttempted(false);
     if (quizState.currentStep === 1) {
       dispatch({ type: "SET_REMOTE_EXPERIENCE", payload: "" });
       window.scrollTo(0, 0);
@@ -109,6 +157,28 @@ const Quiz = () => {
     return (
       <AppLayout>
         <div className="space-y-6 pb-36 md:space-y-8 md:pb-8">
+          {showRestore && (
+            <div className="rounded-card border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div className="flex-1">
+                  <p className="font-semibold">У вас есть незавершённый опрос</p>
+                  <p className="text-sm text-muted-foreground mt-1">Хотите продолжить с того места, где остановились?</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="hero" size="sm" onClick={handleRestore} className="gap-1.5">
+                  <RotateCcw className="h-4 w-4" />
+                  Продолжить
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleDiscardRestore} className="gap-1.5">
+                  <X className="h-4 w-4" />
+                  Начать заново
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="animate-step-in">
             <SectionCard title="Ваш опыт удалённой работы">
               <p className="text-sm text-muted-foreground">
@@ -161,10 +231,16 @@ const Quiz = () => {
       <div className="space-y-6 pb-36 md:space-y-8 md:pb-8">
         <StepHeader step={quizState.currentStep} />
 
+        {validationAttempted && !canGoNext && stepValidation.message && (
+          <div className="rounded-card border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive" data-testid="validation-error">
+            {stepValidation.message}
+          </div>
+        )}
+
         <div key={quizState.currentStep} className="animate-step-in">
         {quizState.currentStep === 1 ? (
           <SectionCard title={quizSteps[0]}>
-            <Button variant="outline" className="w-full justify-between" onClick={() => dispatch({ type: "SET_REGION_PICKER_OPEN", payload: true })}>
+            <Button variant="outline" className={`w-full justify-between ${validationAttempted && !quizState.region ? "border-destructive" : ""}`} onClick={() => dispatch({ type: "SET_REGION_PICKER_OPEN", payload: true })}>
               <span>{quizState.region?.name ?? "Выберите регион"}</span>
               <span className="text-muted-foreground">{quizState.region ? `МСК${quizState.region.timezoneOffset >= 0 ? `+${quizState.region.timezoneOffset}` : quizState.region.timezoneOffset}` : ""}</span>
             </Button>
@@ -202,6 +278,9 @@ const Quiz = () => {
 
         {quizState.currentStep === 2 ? (
           <SectionCard title={quizSteps[1]}>
+            {validationAttempted && quizState.targetRoles.length === 0 && (
+              <p className="text-sm text-destructive">Выберите хотя бы одну должность</p>
+            )}
             <Accordion type="single" collapsible value={activeGroup} onValueChange={(value) => value && setActiveGroup(value)}>
               {allRoleGroups.map((group) => {
                 const selectedInGroup = group.roles.filter((role) => quizState.targetRoles.includes(role.title)).length;
@@ -286,13 +365,20 @@ const Quiz = () => {
               <select
                 value={quizState.totalExperience}
                 onChange={(event) => dispatch({ type: "SET_TOTAL_EXPERIENCE", payload: event.target.value })}
-                className="min-h-[56px] w-full rounded-button border border-input bg-card px-4"
+                className={`min-h-[56px] w-full rounded-button border px-4 ${
+                  validationAttempted && !quizState.totalExperience
+                    ? "border-destructive bg-destructive/5"
+                    : "border-input bg-card"
+                }`}
               >
                 <option value="">Выберите стаж</option>
                 {experienceOptions.map((opt) => (
                   <option key={opt.label} value={opt.label}>{opt.label}</option>
                 ))}
               </select>
+              {validationAttempted && !quizState.totalExperience && (
+                <p className="text-sm text-destructive">Укажите стаж, чтобы продолжить</p>
+              )}
             </label>
 
             <p className="text-[17px] font-bold pt-2">С какими задачами вы знакомы?</p>
@@ -317,24 +403,6 @@ const Quiz = () => {
                   </AccordionContent>
                 </AccordionItem>
               ))}
-              <AccordionItem value="docs" className="rounded-card border border-border px-4">
-                <AccordionTrigger className="text-base no-underline hover:no-underline">
-                  <span className="flex-1 text-left">С какими документами работали</span>
-                  <span className="mr-3 rounded-full border border-border px-2 py-0.5 text-sm text-muted-foreground">
-                    {quizState.documentTypes.length}
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent className="space-y-2">
-                  {documentTypes.map((option) => (
-                    <OptionCard
-                      key={option}
-                      title={option}
-                      selected={quizState.documentTypes.includes(option)}
-                      onClick={() => dispatch({ type: "TOGGLE_DOCUMENT", payload: option })}
-                    />
-                  ))}
-                </AccordionContent>
-              </AccordionItem>
             </Accordion>
           </SectionCard>
         ) : null}
@@ -563,7 +631,7 @@ const Quiz = () => {
         onHint={() => dispatch({ type: "SET_ASSISTANT_OPEN", payload: true })}
         onNext={goNext}
         disableBack={false}
-        disableNext={!canGoNext}
+        disableNext={false}
         nextLabel={isLastStep ? "Подтвердить" : "Дальше"}
       />
     </AppLayout>

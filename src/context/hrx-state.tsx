@@ -80,7 +80,7 @@ const initialState: HrxState = {
     jobs: [],
     decisions: {},
     decisionHistory: [],
-    sortMode: "swipe",
+    sortMode: "list",
     hideNotRecommended: false,
     showScoring: true,
     dateFilter: "all",
@@ -269,12 +269,76 @@ const reducer = (state: HrxState, action: Action): HrxState => {
 
 const HrxStateContext = createContext<{ state: HrxState; dispatch: React.Dispatch<Action> } | null>(null);
 
+const QUIZ_STORAGE_KEY = "hrx_quiz_state";
+const QUIZ_EXPIRY_DAYS = 7;
+
+function saveQuizToStorage(quizState: import("@/types/hrx").QuizState) {
+  try {
+    const payload = {
+      data: quizState,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(payload));
+  } catch {}
+}
+
+export function loadQuizFromStorage(): import("@/types/hrx").QuizState | null {
+  try {
+    const raw = localStorage.getItem(QUIZ_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const age = Date.now() - (parsed.savedAt || 0);
+    if (age > QUIZ_EXPIRY_DAYS * 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(QUIZ_STORAGE_KEY);
+      return null;
+    }
+    const data = parsed.data;
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !Array.isArray(data.targetRoles) ||
+      typeof data.currentStep !== "number" ||
+      !data.remoteExperience
+    ) {
+      localStorage.removeItem(QUIZ_STORAGE_KEY);
+      return null;
+    }
+    return {
+      ...initialState.quizState,
+      ...data,
+      targetRoles: Array.isArray(data.targetRoles) ? data.targetRoles : [],
+      activities: Array.isArray(data.activities) ? data.activities : [],
+      professionalSkills: Array.isArray(data.professionalSkills) ? data.professionalSkills : [],
+      schedules: Array.isArray(data.schedules) ? data.schedules : [],
+      restrictions: Array.isArray(data.restrictions) ? data.restrictions : [],
+      documentTypes: Array.isArray(data.documentTypes) ? data.documentTypes : [],
+      organizationTypes: Array.isArray(data.organizationTypes) ? data.organizationTypes : [],
+      employmentTypes: Array.isArray(data.employmentTypes) ? data.employmentTypes : [],
+      excludedRoleQuick: Array.isArray(data.excludedRoleQuick) ? data.excludedRoleQuick : [],
+      programLevels: data.programLevels && typeof data.programLevels === "object" ? data.programLevels : {},
+    };
+  } catch {
+    localStorage.removeItem(QUIZ_STORAGE_KEY);
+    return null;
+  }
+}
+
+export function clearQuizStorage() {
+  localStorage.removeItem(QUIZ_STORAGE_KEY);
+}
+
 export const HrxStateProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", state.uiState.theme === "dark");
   }, [state.uiState.theme]);
+
+  useEffect(() => {
+    if (state.quizState.remoteExperience) {
+      saveQuizToStorage(state.quizState);
+    }
+  }, [state.quizState]);
 
   const value = useMemo(() => ({ state, dispatch }), [state]);
 

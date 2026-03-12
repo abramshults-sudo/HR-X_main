@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { FileText, Search, Shield, Clock, Users, ClipboardCheck, BookOpen } from "lucide-react";
+import { FileText, Search, Sparkles, Clock, ClipboardCheck, BookOpen } from "lucide-react";
 
 const benefits = [
   {
@@ -15,9 +15,9 @@ const benefits = [
     description: "Список подходящих вакансий с учётом вашего опыта и навыков",
   },
   {
-    icon: Shield,
-    title: "Конфиденциальность",
-    description: "Никакой регистрации и персональных данных не требуется",
+    icon: Sparkles,
+    title: "Резюме под каждую вакансию",
+    description: "ИИ подстраивает резюме специально под конкретного работодателя",
   },
   {
     icon: Clock,
@@ -36,13 +36,11 @@ const Index = () => {
           <h1 className="text-[32px] font-extrabold uppercase tracking-tight leading-none md:text-[44px]">
             Удалённая работа
           </h1>
+          <p className="mt-1 text-base text-muted-foreground">— с опытом и без</p>
           <p className="mt-2 text-base font-semibold text-primary md:text-xl" data-testid="text-hero-subtitle">
-            Найдём все вакансии на удалёнке за 10 минут
+            Пройдите 10-минутный опрос — получите готовое резюме и список вакансий, подобранных под ваш опыт
           </p>
         </div>
-        <p className="text-sm text-muted-foreground md:text-base">
-          Пройдите короткий опрос — получите готовое резюме и подборку подходящих вакансий
-        </p>
 
         <div className="grid grid-cols-1 gap-1.5 text-left sm:grid-cols-2">
           {benefits.map((item) => (
@@ -72,13 +70,8 @@ const Index = () => {
         </Button>
 
         <p className="text-xs text-muted-foreground" data-testid="text-trust-note">
-          Без регистрации. Без ввода личных данных. Первый этап бесплатно.
+          Начать можно без регистрации. Для сохранения результатов — создайте аккаунт (бесплатно)
         </p>
-
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground" data-testid="text-social-proof">
-          <Users className="h-3.5 w-3.5" />
-          <span>Более 2 000 человек уже составили резюме с HR-X</span>
-        </div>
 
         <div className="mx-auto h-px w-16 rounded-full bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20" />
 

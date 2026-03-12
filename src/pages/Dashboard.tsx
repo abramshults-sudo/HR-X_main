@@ -91,11 +91,7 @@ const Dashboard = () => {
       dispatch({ type: "LOAD_QUIZ_STATE", payload: item.quizSnapshot, targetStep: 6 });
     }
     toast({ title: "Результаты загружены", description: `«${item.name}» — ${item.jobCount} вакансий` });
-    if (hasPaid) {
-      navigate("/results");
-    } else {
-      navigate("/profile");
-    }
+    navigate("/results");
   };
 
   const handleLoadPreset = (preset: PresetItem) => {

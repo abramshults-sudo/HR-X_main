@@ -1,6 +1,6 @@
 # HRX App
 
-A React/Vite SPA that helps users build a resume and find relevant job listings through a guided quiz.
+A React/Vite SPA that helps users build a resume and find relevant job listings through a guided quiz. Target audience: 40-65 years old, looking for remote work.
 
 ## Tech Stack
 
@@ -14,9 +14,9 @@ A React/Vite SPA that helps users build a resume and find relevant job listings 
 
 ## Project Structure
 
-- `src/pages/` — Route-level pages (Index, Quiz, Results, AdaptResult, Dashboard, Readiness, Guides; Profile redirects to Results)
+- `src/pages/` — Route-level pages (Index, Quiz, Results, AdaptResult, Dashboard, Readiness, Guides)
 - `src/components/` — Reusable UI components + shadcn/ui primitives in `ui/`
-- `src/context/hrx-state.tsx` — Global app state (quiz answers, jobs, theme, etc.)
+- `src/context/hrx-state.tsx` — Global app state (quiz answers, jobs, theme, localStorage persistence)
 - `src/data/` — Quiz options, resume helpers, regions, readiness checklist, guides content
   - `quizData.ts` — All quiz data: role groups with hh.ru IDs + search keywords, activities (grouped), software skills (grouped), professional skills (grouped), schedule/employment/salary/restriction options with API mappings
   - `regions.ts` — Region catalog sorted alphabetically
@@ -30,73 +30,99 @@ A React/Vite SPA that helps users build a resume and find relevant job listings 
   - `exportResume.ts` — PDF/DOCX/TXT/CSV export
 - `src/types/hrx.ts` — TypeScript types for the app state
 
-## Quiz Structure (v4)
+## Quiz Structure (v5)
 
-Pre-quiz: remote experience level selector ("none" / "some"). 6 steps, 10+1 role groups, ~30+5 software programs, ~27+6 professional skills:
+Pre-quiz: remote experience level selector ("none" / "some"). 6 steps with validation and localStorage persistence:
 
 - **Pre-step**: Remote experience level — "Нет опыта удалёнки" or "Уже работал(а) удалённо"
-  - `remoteExperience: "" | "none" | "some"` in QuizState
-  - "some" adds extra role groups, activity groups, software groups, and skill groups from `experiencedRoleGroups`, `experiencedActivityGroups`, `experiencedSoftwareGroups`, `experiencedSkillGroups` in quizData.ts
-1. **Где вы находитесь** — Region + Moscow time hours
-2. **Целевые должности** — 10 role groups (+ 1 for experienced) with hh.ru professional_role IDs + search keywords, quick exclusion checkboxes, adjacent roles preference
-3. **Опыт работы** — Organization types (9), experience (mapped to hh.ru enum), activities (5 groups + 1 for experienced), documents (14 types)
-4. **Навыки и программы** — Software skills (7 groups + 1 for experienced), professional skills (5 groups + 1 for experienced)
-5. **Условия и ограничения** — Schedule days (hh.ru work_schedule_by_days), employment type (hh.ru employment), salary min (single-select, mapped to hh.ru salary param), restrictions with NOT keywords
-6. **Проверка** — Summary with experience level + "How we'll search" block
+  - If saved state exists in localStorage, restore dialog is shown
+1. **Где вы находитесь** — Region (required) + Moscow time hours
+2. **Целевые должности** — Role groups with hh.ru IDs, quick exclusions, adjacent roles (at least 1 required)
+3. **Опыт работы** — Organization types, experience (required), activities (grouped)
+4. **Навыки и программы** — Software skills (7+ groups), professional skills (5+ groups)
+5. **Условия и ограничения** — Schedule, employment, salary, accessibility, restrictions
+6. **Проверка** — Summary with edit links + search preview
+
+### Quiz Validation (per step)
+- Step 1: Region required
+- Step 2: At least 1 target role required
+- Step 3: Experience/total years required
+- Steps 4-6: No required fields
+- Validation error shown inline after "Next" attempt
+
+### Quiz State Persistence
+- Saved to localStorage after each quiz state change
+- 7-day TTL, cleared on successful completion
+- Restore dialog on /quiz if saved state exists
+- Schema validation on restore (arrays, required fields)
 
 ## Job Search Integration
 
 Vacancies are fetched in real-time from two public APIs:
 
-1. **hh.ru (HeadHunter)** — `GET /vacancies` with:
-   - `text` — role search keywords + NOT exclusion keywords
-   - `professional_role` — hh.ru role IDs from selected roles
-   - `schedule=remote` — remote-only filter
-   - `area` — region from quiz (defaults to `113` = Russia when no region selected)
-   - `experience` — mapped from quiz experience selection
-   - `salary` + `currency=RUR` + `only_with_salary=true` — minimum salary filter
-   - `employment` — full/part/project/probation
-   - `work_schedule_by_days` — 5/2, 2/2, flexible, weekend
-2. **trudvsem.ru (Работа России)** — `GET /vacancies` or `/vacancies/region/{code}` with `text` param + client-side remote filtering
+1. **hh.ru (HeadHunter)** — `GET /vacancies` with role IDs, schedule=remote, region, salary, experience params
+2. **trudvsem.ru (Работа России)** — `GET /vacancies` with text search + client-side remote filtering
 
-Architecture: Frontend sends search params to backend `POST /api/vacancies/search`. Backend fetches from hh.ru and trudvsem.ru APIs directly, caches raw results in `vacancy_cache` PostgreSQL table (TTL: 3 hours). Frontend applies scoring, remote filtering, exclusion filtering, and normalization client-side.
+Architecture: Frontend sends search params to backend `POST /api/vacancies/search`. Backend fetches, caches in PostgreSQL (TTL: 3h). Frontend applies scoring, filtering, match calculation.
 
-Cache key: SHA-256 hash of normalized search params (searchText, roleIds, area, experience, salary, employment, schedules). Identical searches from different users hit the same cache entry.
+### Job Match Score
+Each vacancy gets a match percentage (0-100%) based on:
+- Role keyword match (40% weight)
+- Skills/program match (30% weight)
+- Salary compatibility (20% weight)
+- Remote availability (10% weight)
+Jobs sorted by match score. Low-match (<20%) hidden behind "Show all" button.
 
-Cache behavior:
-- TTL: 3 hours — subsequent requests with same params return cached data instantly
-- Force refresh: `?refresh=true` query param bypasses cache and fetches fresh data
-- UI shows cache age ("Вакансии из кэша, найдены N мин. назад") with "Обновить" link
+### Source Filtering
+Jobs can be filtered by source (hh.ru, trudvsem.ru, or all) via dropdown in Results.
 
-Backend endpoint: `server/vacancyCache.ts` — handles API fetching with retry logic, pagination (up to 20 hh.ru pages), region fallback, and PostgreSQL caching. Stats endpoint: `GET /api/vacancies/cache-stats`.
+## Results Page
 
-Vite proxies `/api/vacancies/*` to Express on port 3001.
+### Free users (not paid):
+- Full resume preview (SectionCard)
+- Registration banner for anonymous users
+- 8 best-matching job cards with match scores
+- Paywall upgrade card
 
-Strict remote-only filtering: hh.ru uses `schedule=remote` + post-filter by `schedule.id` and `work_format`; trudvsem.ru uses keyword search + schedule field matching.
+### Paid users:
+- Tabs: Resume, Jobs, Export
+- Resume tab: AI generation (GPT-4o-mini), download PDF/DOCX/TXT
+- Jobs tab: Full list view with match scores, filters (date, source, scoring), adapt button per card
+- Export tab: Archive, profile/vacancy download
 
-Geography filter: non-Russia locations (Belarus, Kazakhstan, etc.) are excluded client-side via `isRussianLocation()`. hh.ru defaults to `area=113` (Russia) when no specific region is selected.
-
-Pagination: hh.ru fetches all available pages (`per_page=100`, up to 20 pages / 2000 vacancies max). Trudvsem fetches all available pages (`limit=100`, up to offset 1000).
-
-Fallback search: if strict params return 0 results, relaxed search without experience/salary is attempted (area=113 is preserved).
+### Job Cards
+- Match percentage badge (green/yellow/gray)
+- Green "ИИ адаптация резюме" button (prominent)
+- Company scoring toggle
+- Details accordion with source link
 
 ## Company Scoring System
 
-Each vacancy receives a reliability score (0-100). Scoring is **enabled by default** (toggle in Results page).
-
+Each vacancy receives a reliability score (0-100). Scoring is **enabled by default**.
 Score levels: trusted (75+), normal (50-74), suspicious (30-49), risky (<30).
-Status auto-assignment: trusted → "fit", risky → "not_recommended", others → "review".
 
-"Скрыть не рекомендованные" filter is **off** by default — all vacancies (including yellow/red) are shown with warnings.
+## Paywall / Access Control
 
-## QuizState Key Fields
+Price: 300 ₽ (payment not yet connected, testing via promo codes).
 
-- `targetRoles: string[]` — selected role titles (lookup metadata via `findRoleOption()`)
-- `excludedRoleQuick: string[]` — quick exclusion checkbox labels
-- `salaryMin: string` — single salary label like "От 40 000 ₽" (parsed to number for API)
-- `employmentTypes: string[]` — employment type labels (mapped to hh.ru `employment` param)
-- `schedules: string[]` — schedule day labels (mapped to hh.ru `work_schedule_by_days`)
-- `restrictions: string[]` — restriction labels (mapped to NOT keywords for search)
+- Free users see: quiz (full), 8 job previews with match scores, resume preview
+- Paid users see: full job list with filters, full resume + export, AI adaptation, presets and archive
+- Features promoted in paywall: AI resume adaptation (first), all vacancies, full resume, company checks
+
+## Homepage
+
+- Title: "УДАЛЁННАЯ РАБОТА — с опытом и без"
+- Subtitle: "Пройдите 10-минутный опрос — получите готовое резюме и список вакансий"
+- Benefits: resume, job search, AI adaptation per vacancy, speed
+- Trust note: "Начать можно без регистрации. Для сохранения результатов — создайте аккаунт (бесплатно)"
+- Links: Readiness checklist, Guides
+
+## SEO
+
+- Lang: ru
+- Title: "HR-X — Удалённая работа с опытом и без"
+- OG/Twitter meta tags configured in index.html
+- Favicon: SVG in public/favicon.svg
 
 ## Running the App
 
@@ -106,114 +132,23 @@ npm run dev
 
 The dev server runs on port 5000.
 
-## Swipe Job Sorting
-
-Jobs tab has a "quick sort" mode (default) with Tinder-like swipe cards:
-- Swipe right / tap heart = save, swipe left / tap X = archive
-- Undo button returns last decision
-- Three sub-tabs: Pending, Saved, Archived
-- Decision map (`decisions: Record<string, SwipeDecision>`) keyed by job ID
-- `decisionHistory: string[]` for ordered undo
-- Can switch to traditional list view via "Список" button
-
-## Resume Export
-
-File exports implemented via browser-side generation:
-- **TXT**: Plain text blob download via `file-saver`
-- **PDF**: window.print() in new tab (Cyrillic-safe)
-- **DOCX**: Built as OpenXML zip archive via `jszip` (Word-compatible)
-- **CSV**: Vacancy list export with BOM for Excel compatibility (`;` delimiter), includes reliability score (total + level)
-
 ## Backend Server
 
 Express server on port 3001 with PostgreSQL database:
 
 - `server/index.ts` — Express app setup, session middleware, DB table initialization
 - `server/db.ts` — PostgreSQL connection pool + Drizzle ORM
-- `server/auth.ts` — Auth routes: POST /api/auth/register, POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me
-- `server/routes.ts` — CRUD API: GET/POST/DELETE /api/presets, GET/POST/DELETE /api/results
-- `server/vacancyCache.ts` — Vacancy search with PostgreSQL caching (TTL 3h): POST /api/vacancies/search, GET /api/vacancies/cache-stats
-- `server/ai.ts` — AI resume adaptation via OpenAI ChatGPT: POST /api/ai/adapt
-- `server/storage.ts` — Database access layer (Drizzle ORM)
-- `shared/schema.ts` — Drizzle schema: users, presets, saved_results tables
-
-Auth: email + bcrypt password hashing, express-session with connect-pg-simple (sessions in PostgreSQL).
-
-Dev command: `concurrently "tsx server/index.ts" "vite"` — runs Express API server and Vite dev server together.
-
-Vite proxies `/api/auth/*`, `/api/presets`, `/api/results`, `/api/admin/*`, `/api/promo/*`, `/api/ai/*` to Express on port 3001.
+- `server/auth.ts` — Auth routes
+- `server/routes.ts` — CRUD API for presets and results
+- `server/vacancyCache.ts` — Vacancy search with PostgreSQL caching
+- `server/ai.ts` — AI resume adaptation via OpenAI ChatGPT
+- `server/admin.ts` — Admin panel backend
 
 ## AI Resume Adaptation
 
 Route: POST `/api/ai/adapt` (auth-gated). Uses OpenAI GPT-4o-mini.
-
-Flow:
-1. Takes user resume text (built from quiz state) + vacancy description
-2. Sends to GPT with detailed HR-expert prompt (Russian market adapted)
-3. Returns adapted resume + match score + list of changes + match details
-4. Auto-runs hallucination check (compares adapted vs original, flags fabrications)
-5. If hallucinations detected — auto-fixes by removing fabricated data
-
-Prompt features:
-- ATS keyword integration (2-3% density)
-- Achievement quantification with strong action verbs
-- Strict anti-hallucination rules (no fabricated companies, dates, metrics)
-- Russian job market specifics (hh.ru compatibility, date format, education format)
-- Response in structured JSON with matchScore, matchDetails, hallucinationCheck
-
-API key: read from `OPENAI_API_KEY` env var or `app_settings` table (admin panel).
-
-Frontend: `src/pages/AdaptResult.tsx` — real-time AI adaptation with loading state, match visualization, changes list, hallucination check results, copy button.
+Features: ATS keyword integration, hallucination check, match scoring.
 
 ## Admin Panel
 
-Route: `/admin` — password-protected admin dashboard.
-
-- `server/admin.ts` — Admin router: login/logout, logs viewer, promo codes CRUD, API key settings
-- `src/pages/Admin.tsx` — Admin frontend: login form, stats cards, tabbed interface (Logs, Promos, API Keys)
-- `shared/schema.ts` — Additional tables: `promo_codes`, `admin_logs`, `app_settings`
-
-Auth: `ADMIN_PASSWORD` env var, `req.session.isAdmin = true`, middleware `requireAdmin`.
-
-Features:
-- **Dashboard stats**: users count, active promos, total logs, payment events
-- **Logs viewer**: filterable by category (payment, promo, admin, settings), paginated
-- **Promo codes**: create (auto-generate or custom code), toggle active/inactive, delete. Types: discount, free_access, bonus
-- **API keys**: view masked keys (OPENAI_API_KEY, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY), update values. Keys stored in app_settings table + applied to process.env at runtime
-- **Promo validation endpoint**: POST `/api/promo/validate` — validates and redeems promo codes (auth-gated)
-
-## Paywall / Access Control
-
-Price: 300 ₽ (payment not yet connected, testing via promo codes).
-
-- `users.has_paid` boolean — controls access to paid features
-- `src/components/Paywall.tsx` — Paywall component (gradient mask + promo code input) and PaywallBlock (standalone block)
-- `useAuth().hasPaid` — frontend access check
-- Free users see: quiz (full), 3 job previews (count shown), resume preview (first 3-4 lines with gradient fade)
-- Paid users see: full job list with swiper/filters, full resume + export (PDF/DOCX/TXT), presets and archive
-- Promo code `free_access` type grants `has_paid = true` on redemption
-- Promo validation: POST `/api/promo/validate` — atomic redemption with race-condition protection
-
-## Free Content Pages
-
-### Readiness Checklist (`/readiness`)
-- 10-question quiz to assess readiness for remote work
-- Answers: Yes / Partially / No (scored 10/5/0 points each)
-- Result tiers: 80-100% (good), 50-79% (needs improvement), 0-49% (needs preparation)
-- Personalized recommendations for weak areas
-- Data: `src/data/readinessData.ts`, Page: `src/pages/Readiness.tsx`
-- CTAs: link to main quiz, guides, restart
-
-### Mini-Guides (`/guides`)
-- 6 practical guides for remote work audience (40-65 years)
-- Topics: cover letter, video interview, resume mistakes, scam protection, first day, remote professions
-- Each guide has intro, structured sections, conclusion, and CTA
-- Data: `src/data/guidesData.ts`, Page: `src/pages/Guides.tsx`
-- Navigation: accessible from main page, readiness results, and cross-linked between guides
-
-## User Features (Auth-Gated)
-
-- **Quiz Presets**: Save/load/delete named quiz configurations. PresetManager component on Quiz step 6.
-- **Results Archive**: Save/load/delete job search results. ResultsArchive component on Results "Экспорт" tab.
-- Auth context: `src/context/auth-context.tsx` — provides user state, login/register/logout functions.
-- Auth page: `src/pages/Auth.tsx` — login/register form at /auth route.
+Route: `/admin` — password-protected. Stats, logs, promo codes, API key management.

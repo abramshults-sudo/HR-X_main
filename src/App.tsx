@@ -9,7 +9,6 @@ import { useTracking } from "@/hooks/use-tracking";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Quiz from "./pages/Quiz";
-import Profile from "./pages/Profile";
 import Results from "./pages/Results";
 import AdaptResult from "./pages/AdaptResult";
 import Auth from "./pages/Auth";
@@ -38,7 +37,6 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/quiz" element={<Quiz />} />
-                <Route path="/profile" element={<Profile />} />
                 <Route path="/results" element={<Results />} />
                 <Route path="/results/adapt/:id" element={<AdaptResult />} />
                 <Route path="/dashboard" element={<Dashboard />} />

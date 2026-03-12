@@ -131,6 +131,13 @@ export function PaywallUpgradeCard({ feature }: { feature?: string }) {
           <div className="flex items-start gap-2.5 text-sm">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
             <span>
+              <span className="font-medium">ИИ-адаптация резюме</span> — под каждую
+              вакансию отдельно, чтобы повысить шансы
+            </span>
+          </div>
+          <div className="flex items-start gap-2.5 text-sm">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            <span>
               <span className="font-medium">Все вакансии</span> — полный список
               с фильтрами и сортировкой
             </span>
@@ -138,15 +145,15 @@ export function PaywallUpgradeCard({ feature }: { feature?: string }) {
           <div className="flex items-start gap-2.5 text-sm">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
             <span>
-              <span className="font-medium">Полное резюме</span> — весь текст +
-              скачивание в PDF и DOCX
+              <span className="font-medium">Полное резюме</span> — скачивание
+              в PDF и DOCX
             </span>
           </div>
           <div className="flex items-start gap-2.5 text-sm">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
             <span>
-              <span className="font-medium">Архив и пресеты</span> — сохранение
-              результатов и настроек
+              <span className="font-medium">Проверка компаний</span> — оценка
+              надёжности каждого работодателя
             </span>
           </div>
         </div>
@@ -223,7 +230,7 @@ export function FreeContentBanner({ totalJobs = 0 }: { totalJobs?: number }) {
             </p>
             <ul className="space-y-0.5 text-sm text-emerald-700 dark:text-emerald-400">
               <li>• Предпросмотр резюме (начало текста)</li>
-              <li>• 3 подходящие вакансии{totalJobs > 3 ? ` из ${totalJobs} найденных` : " из найденных"}</li>
+              <li>• 8 подходящих вакансий{totalJobs > 8 ? ` из ${totalJobs} найденных` : " из найденных"}</li>
               <li>• Чек-лист готовности и полезные гайды</li>
             </ul>
           </div>

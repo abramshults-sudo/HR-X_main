@@ -68,6 +68,7 @@ export interface JobItem {
   location?: string;
   companyScore?: CompanyScore;
   publishedAt?: string;
+  requirements?: string;
 }
 
 export type JobSortMode = "swipe" | "list";
