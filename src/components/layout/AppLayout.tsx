@@ -19,35 +19,39 @@ export const AppLayout = ({ children, centered = false }: AppLayoutProps) => {
         <Link to="/" className="text-2xl font-extrabold text-primary">
           HR-X
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {user ? (
             <>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => navigate("/dashboard")}
                 data-testid="button-dashboard"
-                className="gap-1"
+                className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:gap-1"
               >
-                <LayoutDashboard className="h-4 w-4" />
-                <span className="hidden sm:inline">Кабинет</span>
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline text-sm">Кабинет</span>
               </Button>
-              <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-sm font-medium text-primary" data-testid="text-user-email">
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary sm:h-auto sm:w-auto sm:px-2.5 sm:py-1 sm:gap-1.5 sm:rounded-full"
+                data-testid="text-user-email"
+              >
                 <UserCheck className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline max-w-[140px] truncate">{user.email}</span>
-                <span className="sm:hidden">Вы вошли</span>
-              </div>
+                <span className="hidden sm:inline text-sm font-medium max-w-[140px] truncate">{user.email}</span>
+              </button>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:gap-1"
                 onClick={() => {
                   logout();
                   navigate("/");
                 }}
                 data-testid="button-logout"
               >
-                <LogOut className="h-4 w-4" />
-                <span className="ml-1 hidden sm:inline">Выйти</span>
+                <LogOut className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline text-sm">Выйти</span>
               </Button>
             </>
           ) : (
@@ -56,10 +60,10 @@ export const AppLayout = ({ children, centered = false }: AppLayoutProps) => {
               size="sm"
               onClick={() => navigate("/auth")}
               data-testid="button-login"
-              className="gap-1.5"
+              className="h-8 px-2 gap-1 sm:h-9 sm:px-3 sm:gap-1.5"
             >
-              <LogIn className="h-4 w-4" />
-              Войти
+              <LogIn className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Войти</span>
             </Button>
           )}
           <ThemeToggle />
