@@ -348,7 +348,7 @@ export async function searchAllVacancies(quiz: QuizState, forceRefresh = false):
   console.log("[JobApi] sending search request to backend...");
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
   let res: Response;
   try {

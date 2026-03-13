@@ -80,7 +80,7 @@ export function usePresets() {
         }
       }
       toast({
-        title: "Пресет загружен",
+        title: "Настройки загружены",
         description: `«${preset.name}» — данные квиза и фильтры восстановлены`,
       });
     },
@@ -110,7 +110,7 @@ export function usePresets() {
         });
         if (res.ok) {
           toast({
-            title: "Пресет сохранён",
+            title: "Настройки сохранены",
             description: `«${name.trim()}» сохранён в вашем аккаунте`,
           });
           loadPresets();
@@ -137,7 +137,7 @@ export function usePresets() {
           credentials: "include",
         });
         if (res.ok) {
-          toast({ title: "Удалено", description: `Пресет «${preset.name}» удалён` });
+          toast({ title: "Удалено", description: `Настройка «${preset.name}» удалена` });
           loadPresets();
         }
       } catch {

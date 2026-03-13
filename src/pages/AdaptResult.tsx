@@ -131,7 +131,7 @@ const AdaptResult = () => {
             <ul className="list-disc space-y-1 pl-6 text-foreground text-sm">
               <li>ИИ проанализирует требования вакансии</li>
               <li>Адаптирует ваше резюме под конкретную позицию</li>
-              <li>Интегрирует ключевые слова для прохождения ATS</li>
+              <li>Интегрирует ключевые слова для загрузки на сайт работодателя</li>
               <li>Приоритизирует релевантный опыт</li>
               <li>Проверит результат на выдуманные данные</li>
             </ul>
@@ -248,9 +248,9 @@ const AdaptResult = () => {
                 )}
                 <span className="font-medium">
                   {result.hallucinationCheck.verdict === "PASSED"
-                    ? "Проверка пройдена"
+                    ? "Проверка пройдена — в резюме только ваши реальные данные"
                     : result.hallucinationCheck.verdict === "FIXED"
-                      ? "Галлюцинации обнаружены и исправлены"
+                      ? "Неточности обнаружены и исправлены"
                       : "Требует ручной проверки"}
                 </span>
                 <span className="text-sm text-muted-foreground">

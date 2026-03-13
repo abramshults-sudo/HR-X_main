@@ -101,7 +101,7 @@ export const ResultsArchive = () => {
   if (!user) return null;
 
   return (
-    <SectionCard title="Архив результатов">
+    <SectionCard title="Мои сохранённые поиски">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">

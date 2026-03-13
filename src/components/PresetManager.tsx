@@ -24,7 +24,7 @@ export const PresetManager = () => {
   return (
     <div className="rounded-card border border-border bg-card p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-[17px] font-bold">Мои пресеты</p>
+        <p className="text-[17px] font-bold">Сохранённые настройки</p>
         <Button
           variant="ghost"
           size="sm"
@@ -39,7 +39,7 @@ export const PresetManager = () => {
       {showSave && (
         <div className="flex gap-2">
           <Input
-            placeholder="Название пресета"
+            placeholder="Название настройки"
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSave()}
@@ -57,7 +57,7 @@ export const PresetManager = () => {
         </div>
       ) : presets.length === 0 ? (
         <p className="text-sm text-muted-foreground py-2">
-          Пока нет сохранённых пресетов. Заполните квиз и нажмите «Сохранить текущий».
+          Пока нет сохранённых настроек. Заполните квиз и нажмите «Сохранить текущий».
         </p>
       ) : (
         <div className="space-y-2">
@@ -74,7 +74,7 @@ export const PresetManager = () => {
                   {preset.filters && (
                     <span className="ml-1 text-muted-foreground/70">
                       {[
-                        preset.filters.resumeMode === "ats" ? "ATS" : null,
+                        preset.filters.resumeMode === "ats" ? "для работодателя" : null,
                         preset.filters.showScoring ? "скоринг" : null,
                         preset.filters.dateFilter && preset.filters.dateFilter !== "all" ? `${preset.filters.dateFilter}д` : null,
                       ].filter(Boolean).join(", ") || null}

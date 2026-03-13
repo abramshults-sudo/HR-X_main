@@ -8,7 +8,7 @@ const HH_API = "https://api.hh.ru";
 const TV_API = "https://opendata.trudvsem.ru/api/v1";
 const TV_API_FALLBACK = "http://opendata.trudvsem.ru/api/v1";
 const USER_AGENT = "Mozilla/5.0 (compatible; HRXBot/1.0)";
-const FETCH_TIMEOUT_MS = 15000;
+const FETCH_TIMEOUT_MS = 10000;
 const MAX_CACHE_ENTRIES = 500;
 
 interface SearchParams {

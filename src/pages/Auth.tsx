@@ -52,7 +52,7 @@ export default function Auth() {
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
               {mode === "login"
-                ? "Войдите, чтобы сохранять пресеты и результаты"
+                ? "Войдите, чтобы сохранять настройки и результаты"
                 : "Создайте аккаунт для сохранения данных"}
             </p>
           </CardHeader>

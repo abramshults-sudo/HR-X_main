@@ -18,11 +18,11 @@ export const StepHeader = ({ step }: StepHeaderProps) => {
   }, [step]);
 
   return (
-    <div className="space-y-3">
+    <div className="sticky top-0 z-30 -mx-4 space-y-3 bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:-mx-0 md:px-0">
       <ProgressBar current={step} total={total} />
       <div className="flex items-center gap-2">
         <p className="text-sm text-muted-foreground" data-testid="text-step-indicator">
-          Шаг {step} из {total}: {title}
+          Шаг {step} из 6: {title}
         </p>
         {helpText && (
           <button

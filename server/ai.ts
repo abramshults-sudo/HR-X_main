@@ -293,7 +293,7 @@ ${adaptResult.adaptedResume}
             adaptResult.adaptedResume = fixResult.adaptedResume;
             adaptResult.changes = [
               ...(adaptResult.changes || []),
-              "Автоматическое исправление: удалены галлюцинации",
+              "Автоматическое исправление: убраны неточности",
             ];
             hallucinationCheck.verdict = "FIXED";
             hallucinationCheck.removedHallucinations =

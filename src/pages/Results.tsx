@@ -315,6 +315,12 @@ const Results = () => {
           ) : null}
 
           <PaywallUpgradeCard />
+          <div className="h-20 md:hidden" />
+        </div>
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur-sm md:hidden">
+          <Button variant="hero" className="w-full text-base" data-testid="button-paywall-pay-mobile">
+            Получить за 300 ₽ — разовый платёж
+          </Button>
         </div>
       </AppLayout>
     );

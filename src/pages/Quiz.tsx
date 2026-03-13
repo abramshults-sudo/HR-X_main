@@ -31,7 +31,7 @@ import {
   targetRoleGroups,
 } from "@/data/quizData";
 import { useHrxState, loadQuizFromStorage, clearQuizStorage } from "@/context/hrx-state";
-import { RotateCcw, X, ChevronDown, Lightbulb } from "lucide-react";
+import { RotateCcw, X, ChevronDown, Lightbulb, ChevronUp } from "lucide-react";
 
 const ACTIVITY_INITIAL_COUNT = 5;
 
@@ -75,6 +75,7 @@ const Quiz = () => {
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [expandedActivities, setExpandedActivities] = useState<Record<string, boolean>>({});
   const [recommendedApplied, setRecommendedApplied] = useState(false);
+  const [showAllPrograms, setShowAllPrograms] = useState(false);
   const [prevRolesKey, setPrevRolesKey] = useState(() => quizState.targetRoles.join(","));
 
   const recommendedPrograms = useMemo(
@@ -340,6 +341,7 @@ const Quiz = () => {
                         <OptionCard
                           key={role.title}
                           title={role.title}
+                          subtitle={role.hint}
                           selected={quizState.targetRoles.includes(role.title)}
                           onClick={() => dispatch({ type: "TOGGLE_TARGET_ROLE", payload: role.title })}
                         />
@@ -493,47 +495,114 @@ const Quiz = () => {
                 Рекомендованные программы добавлены. Вы можете изменить уровень для каждой.
               </div>
             )}
-            <div className="space-y-3">
-              <p className="text-[17px] font-bold">Программы и уровень</p>
-              <p className="text-sm text-muted-foreground">Откройте нужную категорию и выберите уровень для каждой программы.</p>
-              <Accordion type="multiple" className="space-y-2">
-                {allSoftwareGroups.map((group) => {
-                  const filledCount = group.items.filter(p => quizState.programLevels[p] && quizState.programLevels[p] !== "none").length;
-                  return (
-                    <AccordionItem key={group.group} value={group.group} className="rounded-card border border-border px-4">
-                      <AccordionTrigger className="text-base no-underline hover:no-underline">
-                        <span className="flex-1 text-left">{group.group}</span>
-                        <span className="mr-3 rounded-full border border-border px-2 py-0.5 text-sm text-muted-foreground">{filledCount}</span>
-                      </AccordionTrigger>
-                      <AccordionContent className="space-y-4">
-                        {group.items.map((program) => (
+            {(() => {
+              const selectedOrRecommended = new Set([
+                ...recommendedPrograms,
+                ...Object.keys(quizState.programLevels).filter(k => quizState.programLevels[k] && quizState.programLevels[k] !== "none"),
+              ]);
+              const mainGroups = allSoftwareGroups.filter(g => g.items.some(i => selectedOrRecommended.has(i)));
+              const extraGroups = allSoftwareGroups.filter(g => !g.items.some(i => selectedOrRecommended.has(i)));
+
+              const renderProgramGroup = (group: typeof allSoftwareGroups[0]) => {
+                const filledCount = group.items.filter(p => quizState.programLevels[p] && quizState.programLevels[p] !== "none").length;
+                return (
+                  <AccordionItem key={group.group} value={group.group} className="rounded-card border border-border px-4">
+                    <AccordionTrigger className="text-base no-underline hover:no-underline">
+                      <span className="flex-1 text-left">{group.group}</span>
+                      {filledCount > 0 ? (
+                        <span className="mr-3 rounded-full bg-primary/10 border border-primary/30 px-2 py-0.5 text-sm font-semibold text-primary">{filledCount}</span>
+                      ) : (
+                        <span className="mr-3 rounded-full border border-border px-2 py-0.5 text-sm text-muted-foreground">{group.items.length}</span>
+                      )}
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-4">
+                      {group.items.map((program) => {
+                        const isSelected = quizState.programLevels[program] && quizState.programLevels[program] !== "none";
+                        return (
                           <div key={program} className="space-y-2">
-                            <p className="text-sm font-semibold">{program}</p>
-                            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                              {(["none", "basic", "confident", "advanced"] as const).map((level) => (
-                                <button
-                                  type="button"
-                                  key={level}
-                                  onClick={() => dispatch({ type: "SET_PROGRAM_LEVEL", payload: { program, level } })}
-                                  className={`min-h-[44px] rounded-button border px-3 text-sm ${
-                                    quizState.programLevels[program] === level
-                                      ? "border-2 border-primary bg-primary/10"
-                                      : "border-border bg-card"
-                                  }`}
-                                  data-testid={`button-level-${program}-${level}`}
-                                >
-                                  {level === "none" ? "—" : level === "basic" ? "Базовый" : level === "confident" ? "Уверенный" : "Продвинутый"}
-                                </button>
-                              ))}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => dispatch({ type: "SET_PROGRAM_LEVEL", payload: { program, level: isSelected ? "none" : "basic" } })}
+                              className={`flex min-h-[44px] w-full items-center gap-3 rounded-card border px-4 py-2 text-left text-sm font-semibold transition-all ${
+                                isSelected ? "border-2 border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50"
+                              }`}
+                            >
+                              <span className="flex-1">{program}</span>
+                              {isSelected && <span className="text-xs text-primary">✓</span>}
+                            </button>
+                            {isSelected && (
+                              <div className="grid grid-cols-3 gap-2 pl-2">
+                                {(["basic", "confident", "advanced"] as const).map((level) => (
+                                  <button
+                                    type="button"
+                                    key={level}
+                                    onClick={() => dispatch({ type: "SET_PROGRAM_LEVEL", payload: { program, level } })}
+                                    className={`min-h-[40px] rounded-button border px-3 text-sm ${
+                                      quizState.programLevels[program] === level
+                                        ? "border-2 border-primary bg-primary/10 font-semibold"
+                                        : "border-border bg-card"
+                                    }`}
+                                    data-testid={`button-level-${program}-${level}`}
+                                  >
+                                    {level === "basic" ? "Базовый" : level === "confident" ? "Уверенный" : "Продвинутый"}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-            </div>
+                        );
+                      })}
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              };
+
+              return (
+                <div className="space-y-3">
+                  <p className="text-[17px] font-bold">Программы и уровень</p>
+                  <p className="text-sm text-muted-foreground">Отметьте программы, которыми владеете, и выберите уровень.</p>
+                  {mainGroups.length > 0 && (
+                    <>
+                      <p className="text-sm font-semibold text-primary">Основные</p>
+                      <Accordion type="multiple" className="space-y-2">
+                        {mainGroups.map(renderProgramGroup)}
+                      </Accordion>
+                    </>
+                  )}
+                  {extraGroups.length > 0 && (
+                    <>
+                      {!showAllPrograms ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllPrograms(true)}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                          Показать все программы ({extraGroups.reduce((s, g) => s + g.items.length, 0)})
+                        </button>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-muted-foreground">Дополнительные</p>
+                            <button
+                              type="button"
+                              onClick={() => setShowAllPrograms(false)}
+                              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                              Свернуть
+                            </button>
+                          </div>
+                          <Accordion type="multiple" className="space-y-2">
+                            {extraGroups.map(renderProgramGroup)}
+                          </Accordion>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="space-y-3">
               <p className="text-[17px] font-bold">Профессиональные навыки</p>
@@ -715,7 +784,7 @@ const Quiz = () => {
         onHint={() => dispatch({ type: "SET_ASSISTANT_OPEN", payload: true })}
         onNext={goNext}
         disableBack={false}
-        disableNext={false}
+        disableNext={!canGoNext}
         nextLabel={isLastStep ? "Подтвердить" : "Дальше"}
       />
     </AppLayout>

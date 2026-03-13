@@ -46,7 +46,7 @@ Pre-quiz: remote experience level selector ("none" / "some"). 6 steps with valid
 
 ### Quiz Features
 - **Step tooltips**: "?" icon on each step header shows inline help text explaining why the step matters. Closes automatically on step change.
-- **Smart program recommendations (step 4)**: Based on selected roles, recommended programs are suggested with a one-click "add" button. Resets when roles are modified.
+- **Smart program recommendations (step 4)**: Based on selected roles, recommended programs are suggested with a one-click "add" button. Resets when roles are modified. Programs split into "Основные" (recommended/selected) and "Дополнительные" (collapsed by default).
 - **Activity simplification (step 3)**: Groups show first 5 items, rest behind "Показать ещё N" button.
 
 ### Quiz Validation (per step)
@@ -73,6 +73,8 @@ Architecture: Frontend sends search params to backend `POST /api/vacancies/searc
 
 ### Job Match Score
 Each vacancy gets a match percentage (0-100%) based on:
+- Role hints shown as subtitles on step 2 option cards
+- Mobile paywall: fixed bottom CTA button for unpaid users on Results page
 - Role keyword match (40% weight)
 - Skills/program match (30% weight)
 - Salary compatibility (20% weight)
@@ -127,8 +129,10 @@ Price: 300 ₽ (payment not yet connected, testing via promo codes).
 
 - Lang: ru
 - Title: "HR-X — Удалённая работа с опытом и без"
-- OG/Twitter meta tags configured in index.html
+- OG/Twitter meta tags configured in index.html (og:image, twitter:image, summary_large_image)
 - Favicon: SVG in public/favicon.svg
+- Apple touch icon: public/favicon.svg
+- OG image: public/og-image.svg
 
 ## Running the App
 

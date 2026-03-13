@@ -200,7 +200,7 @@ const Dashboard = () => {
           )}
         </SectionCard>
 
-        <SectionCard title="Мои пресеты" icon={<Bookmark className="h-4 w-4 text-primary" />}>
+        <SectionCard title="Сохранённые настройки" icon={<Bookmark className="h-4 w-4 text-primary" />}>
           {presetsLoading ? (
             <div className="flex justify-center py-3">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -208,7 +208,7 @@ const Dashboard = () => {
           ) : presets.length === 0 ? (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground py-2">
-                Пока нет сохранённых пресетов. Пройдите квиз и сохраните настройки на шаге 6.
+                Пока нет сохранённых настроек. Пройдите квиз и сохраните настройки на шаге 6.
               </p>
               <Button variant="outline" size="sm" onClick={() => navigate("/quiz")}>
                 Пройти квиз
