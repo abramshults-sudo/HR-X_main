@@ -300,6 +300,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     OPENAI_API_KEY: "OpenAI API Key",
     YOOKASSA_SHOP_ID: "ЮKassa Shop ID",
     YOOKASSA_SECRET_KEY: "ЮKassa Secret Key",
+    YANDEX_METRIKA_ID: "Яндекс.Метрика (ID счётчика)",
+    GOOGLE_ANALYTICS_ID: "Google Analytics (ID, напр. G-XXXXXXXXXX)",
   };
 
   return (

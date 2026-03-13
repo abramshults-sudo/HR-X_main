@@ -81,6 +81,51 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+import { appSettings } from "../shared/schema.js";
+import { eq as eqOp } from "drizzle-orm";
+
+app.get("/api/analytics-ids", async (_req, res) => {
+  try {
+    const settings = await db.select().from(appSettings);
+    const map: Record<string, string> = {};
+    for (const s of settings) {
+      map[s.key] = s.value;
+    }
+    res.json({
+      ymId: map["YANDEX_METRIKA_ID"] || "",
+      gaId: map["GOOGLE_ANALYTICS_ID"] || "",
+    });
+  } catch {
+    res.json({ ymId: "", gaId: "" });
+  }
+});
+
+app.get("/sitemap.xml", (_req, res) => {
+  const baseUrl = process.env.REPL_SLUG
+    ? `https://${process.env.REPLIT_DEV_DOMAIN || process.env.REPL_SLUG + "." + process.env.REPL_OWNER + ".repl.co"}`
+    : "https://hr-x.ru";
+
+  const pages = [
+    { loc: "/", priority: "1.0", changefreq: "weekly" },
+    { loc: "/quiz", priority: "0.9", changefreq: "monthly" },
+    { loc: "/auth", priority: "0.5", changefreq: "monthly" },
+    { loc: "/readiness", priority: "0.7", changefreq: "monthly" },
+    { loc: "/guides", priority: "0.7", changefreq: "weekly" },
+  ];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${pages.map(p => `  <url>
+    <loc>${baseUrl}${p.loc}</loc>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join("\n")}
+</urlset>`;
+
+  res.header("Content-Type", "application/xml");
+  res.send(xml);
+});
+
 async function initDb() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS users (

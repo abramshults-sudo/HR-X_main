@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { Ticket, CheckCircle2, Loader2, Gift, Star, Lock } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 interface PaywallProps {
   children: React.ReactNode;
@@ -80,11 +81,9 @@ export function PaywallUpgradeCard({ feature }: { feature?: string }) {
       if (res.ok) {
         if (data.type === "free_access") {
           setPromoSuccess(true);
-          toast({
-            title: "Доступ активирован!",
-            description: "Промокод применён. Все функции доступны.",
-          });
+          trackEvent("promo_applied");
           await refreshUser();
+          navigate("/access-granted");
         } else if (data.type === "discount") {
           toast({
             title: `Скидка ${data.value}%`,

@@ -7,6 +7,7 @@ import { useHrxState } from "@/context/hrx-state";
 import { useAuth } from "@/context/auth-context";
 import { Loader2, CheckCircle, AlertTriangle, XCircle, Copy, Check } from "lucide-react";
 import { buildResumeText } from "@/data/mockResumeHelpers";
+import { trackEvent } from "@/lib/analytics";
 
 interface AdaptResponse {
   adaptedResume: string;
@@ -71,6 +72,7 @@ const AdaptResult = () => {
       }
 
       setResult(data);
+      trackEvent("resume_adapt");
     } catch {
       setError("Ошибка сети. Попробуйте позже.");
     } finally {

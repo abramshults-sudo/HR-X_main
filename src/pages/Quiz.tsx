@@ -31,6 +31,7 @@ import {
   targetRoleGroups,
 } from "@/data/quizData";
 import { useHrxState, loadQuizFromStorage, clearQuizStorage } from "@/context/hrx-state";
+import { trackEvent } from "@/lib/analytics";
 import { RotateCcw, X, ChevronDown, Lightbulb, ChevronUp } from "lucide-react";
 
 const ACTIVITY_INITIAL_COUNT = 5;
@@ -162,11 +163,13 @@ const Quiz = () => {
     if (isLastStep) {
       dispatch({ type: "SET_PROFILE_READY", payload: true });
       clearQuizStorage();
+      trackEvent("quiz_complete");
       navigate("/results");
       return;
     }
 
     setValidationAttempted(false);
+    trackEvent("quiz_step", { step: quizState.currentStep + 1 });
     dispatch({ type: "SET_STEP", payload: (quizState.currentStep + 1) as typeof quizState.currentStep });
     window.scrollTo(0, 0);
   };

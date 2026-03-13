@@ -2,9 +2,26 @@ import { Router, Request, Response } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "./auth.js";
 import { db } from "./db.js";
-import { appSettings } from "../shared/schema.js";
+import { appSettings, users } from "../shared/schema.js";
 import { eq } from "drizzle-orm";
 import { addLog } from "./admin.js";
+
+async function requirePaid(req: Request, res: Response, next: () => void) {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Необходима авторизация" });
+    return;
+  }
+  try {
+    const [user] = await db.select({ hasPaid: users.hasPaid }).from(users).where(eq(users.id, req.session.userId));
+    if (!user || !user.hasPaid) {
+      res.status(403).json({ error: "Эта функция доступна после оплаты" });
+      return;
+    }
+    next();
+  } catch {
+    res.status(500).json({ error: "Ошибка проверки доступа" });
+  }
+}
 
 function getOpenAiKey(): string {
   return process.env.OPENAI_API_KEY || "";
@@ -168,7 +185,7 @@ ${adaptedResume}`;
 
 const aiRouter = Router();
 
-aiRouter.post("/adapt", requireAuth, async (req: Request, res: Response) => {
+aiRouter.post("/adapt", requirePaid, async (req: Request, res: Response) => {
   try {
     let apiKey = getOpenAiKey();
     if (!apiKey) {
@@ -356,7 +373,7 @@ ${adaptResult.adaptedResume}
   }
 });
 
-aiRouter.post("/generate", requireAuth, async (req: Request, res: Response) => {
+aiRouter.post("/generate", requirePaid, async (req: Request, res: Response) => {
   try {
     let apiKey = getOpenAiKey();
     if (!apiKey) {

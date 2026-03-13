@@ -133,6 +133,27 @@ Price: 300 ₽ (payment not yet connected, testing via promo codes).
 - Favicon: SVG in public/favicon.svg
 - Apple touch icon: public/favicon.svg
 - OG image: public/og-image.svg
+- Sitemap: /sitemap.xml (dynamic, served by Express)
+- robots.txt references sitemap
+- Structured data (JSON-LD): WebApplication schema in index.html, JobPosting schema injected dynamically for search results
+- Structured data component: src/components/JobStructuredData.tsx
+
+## Analytics
+
+Analytics integration managed through admin panel (no hardcoded IDs):
+- **Yandex Metrika**: Set ID in admin → API-ключи → "Яндекс.Метрика (ID счётчика)"
+- **Google Analytics**: Set ID in admin → API-ключи → "Google Analytics (ID, напр. G-XXXXXXXXXX)"
+- Scripts auto-injected via `src/components/AnalyticsProvider.tsx` (fetches IDs from `/api/analytics-ids`)
+- Event tracking: `src/lib/analytics.ts` — `trackEvent()` and `trackPageView()` fire to both YM and GA
+- Tracked events: quiz_complete, quiz_step, payment_success, resume_generate, resume_adapt, registration, promo_applied, access_granted_view, job_search, resume_download
+- Page views tracked automatically via `src/hooks/use-tracking.ts`
+
+## Access Control
+
+- `/access-granted` — shown after successful promo code / payment activation
+- AI endpoints (`/api/ai/adapt`, `/api/ai/generate`) require `hasPaid=true` (403 if not paid)
+- Free users: quiz + 8 job previews + resume preview
+- Paid users: full jobs + filters + AI adaptation + resume export
 
 ## Running the App
 
@@ -156,9 +177,11 @@ Express server on port 3001 with PostgreSQL database:
 
 ## AI Resume Adaptation
 
-Route: POST `/api/ai/adapt` (auth-gated). Uses OpenAI GPT-4o-mini.
+Route: POST `/api/ai/adapt` (payment-gated). Uses OpenAI GPT-4o-mini.
+Route: POST `/api/ai/generate` (payment-gated). Uses OpenAI GPT-4o-mini.
 Features: ATS keyword integration, hallucination check, match scoring.
+Both endpoints check `hasPaid` status — unpaid users get 403.
 
 ## Admin Panel
 
-Route: `/admin` — password-protected. Stats, logs, promo codes, API key management.
+Route: `/admin` — password-protected. Stats, logs, promo codes, API key management, analytics IDs (Yandex Metrika, Google Analytics).

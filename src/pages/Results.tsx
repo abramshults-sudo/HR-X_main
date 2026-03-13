@@ -14,6 +14,8 @@ import { ResultsArchive } from "@/components/ResultsArchive";
 import { JobCard } from "@/components/JobCard";
 import { PaywallUpgradeCard } from "@/components/Paywall";
 import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Clock, Sparkles, Copy, Check, Lightbulb, Search, UserPlus, Briefcase } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
+import { JobStructuredData } from "@/components/JobStructuredData";
 
 const FREE_PREVIEW_JOBS = 8;
 
@@ -111,6 +113,7 @@ const Results = () => {
       dispatch({ type: "SET_JOBS", payload: result.jobs });
       setCachedAt(result.cachedAt);
       setFromCache(result.fromCache);
+      trackEvent("job_search", { count: result.jobs.length });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Не удалось загрузить вакансии. Попробуйте ещё раз.";
       dispatch({ type: "SET_JOBS_ERROR", payload: msg });
@@ -126,9 +129,9 @@ const Results = () => {
   const resumeText = buildResumeText(state.quizState, "regular");
   const activeResumeText = showAiResume && aiResume ? aiResume : resumeText;
 
-  const handleExportPdf = () => downloadPdf(activeResumeText, "resume.pdf");
-  const handleExportDocx = () => downloadDocx(activeResumeText, "resume.docx");
-  const handleExportTxt = () => downloadTxt(activeResumeText, "resume.txt");
+  const handleExportPdf = () => { trackEvent("resume_download", { format: "pdf" }); downloadPdf(activeResumeText, "resume.pdf"); };
+  const handleExportDocx = () => { trackEvent("resume_download", { format: "docx" }); downloadDocx(activeResumeText, "resume.docx"); };
+  const handleExportTxt = () => { trackEvent("resume_download", { format: "txt" }); downloadTxt(activeResumeText, "resume.txt"); };
 
   const handleAiGenerate = useCallback(async () => {
     setAiLoading(true);
@@ -151,6 +154,7 @@ const Results = () => {
       setAiResume(data.resumeText);
       setAiTips(data.tips || []);
       setShowAiResume(true);
+      trackEvent("resume_generate");
     } catch {
       setAiError("Ошибка сети. Попробуйте позже.");
     } finally {
@@ -200,6 +204,9 @@ const Results = () => {
     );
   };
 
+  const [showLowMatch, setShowLowMatch] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<"all" | "hh" | "tv">("all");
+
   const visibleJobs = useMemo(() => {
     let filtered = state.jobsState.hideNotRecommended
       ? state.jobsState.jobs.filter((j) => j.status !== "not_recommended")
@@ -231,12 +238,22 @@ const Results = () => {
       }))
       .sort((a, b) => b.matchScore - a.matchScore);
   }, [visibleJobs, state.quizState]);
-
-  const [showLowMatch, setShowLowMatch] = useState(false);
-  const [sourceFilter, setSourceFilter] = useState<"all" | "hh" | "tv">("all");
   const highMatchJobs = useMemo(() => scoredJobs.filter(j => j.matchScore >= 20), [scoredJobs]);
   const lowMatchJobs = useMemo(() => scoredJobs.filter(j => j.matchScore < 20), [scoredJobs]);
   const displayedScoredJobs = showLowMatch ? scoredJobs : highMatchJobs;
+
+  if (state.quizState.targetRoles.length === 0 && !state.jobsState.isLoading && state.jobsState.jobs.length === 0) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-lg py-16 text-center space-y-4">
+          <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h1 className="text-2xl font-bold">Нет данных</h1>
+          <p className="text-muted-foreground">Пройдите опрос, чтобы увидеть резюме и подобранные вакансии.</p>
+          <Button onClick={() => navigate("/quiz")} className="mt-4">Пройти опрос</Button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!hasPaid) {
     const totalJobs = state.jobsState.jobs.length;
@@ -245,6 +262,7 @@ const Results = () => {
 
     return (
       <AppLayout>
+        <JobStructuredData jobs={state.jobsState.jobs} />
         <div className="mx-auto max-w-3xl space-y-6 md:space-y-8">
           <button type="button" onClick={() => navigate("/quiz")} className="flex items-center gap-1.5 text-sm font-semibold text-primary" data-testid="button-back-to-quiz">
             <ArrowLeft className="h-4 w-4" />
@@ -328,6 +346,7 @@ const Results = () => {
 
   return (
     <AppLayout>
+      <JobStructuredData jobs={state.jobsState.jobs} />
       <div className="mx-auto max-w-4xl space-y-6 md:space-y-8">
         <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-primary" data-testid="button-back">
           <ArrowLeft className="h-4 w-4" />

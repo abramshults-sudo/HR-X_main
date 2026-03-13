@@ -16,6 +16,8 @@ import Admin from "./pages/Admin";
 import Readiness from "./pages/Readiness";
 import Guides from "./pages/Guides";
 import Dashboard from "./pages/Dashboard";
+import AccessGranted from "./pages/AccessGranted";
+import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,7 @@ const App = () => (
         <AuthProvider>
           <HrxStateProvider>
             <TrackingWrapper>
+              <AnalyticsProvider />
               <Toaster />
               <Sonner />
               <Routes>
@@ -40,6 +43,7 @@ const App = () => (
                 <Route path="/results" element={<Results />} />
                 <Route path="/results/adapt/:id" element={<AdaptResult />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/access-granted" element={<AccessGranted />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/readiness" element={<Readiness />} />
                 <Route path="/guides" element={<Guides />} />

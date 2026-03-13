@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 interface AuthUser {
   id: number;
@@ -68,6 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const data = await res.json();
       if (!res.ok) return { ok: false, error: data.error || "Ошибка регистрации" };
       setUser(data);
+      trackEvent("registration");
       return { ok: true };
     } catch {
       return { ok: false, error: "Ошибка сети" };

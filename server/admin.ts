@@ -260,13 +260,14 @@ adminRouter.get("/settings", requireAdmin, async (req: Request, res: Response) =
       map[s.key] = s.value;
     }
 
-    const keys = ["OPENAI_API_KEY", "YOOKASSA_SHOP_ID", "YOOKASSA_SECRET_KEY"];
+    const keys = ["OPENAI_API_KEY", "YOOKASSA_SHOP_ID", "YOOKASSA_SECRET_KEY", "YANDEX_METRIKA_ID", "GOOGLE_ANALYTICS_ID"];
     const result: Record<string, string> = {};
     for (const k of keys) {
       const stored = map[k];
       const env = process.env[k];
       const val = stored || env || "";
-      result[k] = val ? maskKey(val) : "";
+      const isAnalyticsId = k === "YANDEX_METRIKA_ID" || k === "GOOGLE_ANALYTICS_ID";
+      result[k] = val ? (isAnalyticsId ? val : maskKey(val)) : "";
     }
 
     res.json(result);
@@ -279,7 +280,7 @@ adminRouter.get("/settings", requireAdmin, async (req: Request, res: Response) =
 adminRouter.put("/settings", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { key, value } = req.body;
-    const allowedKeys = ["OPENAI_API_KEY", "YOOKASSA_SHOP_ID", "YOOKASSA_SECRET_KEY"];
+    const allowedKeys = ["OPENAI_API_KEY", "YOOKASSA_SHOP_ID", "YOOKASSA_SECRET_KEY", "YANDEX_METRIKA_ID", "GOOGLE_ANALYTICS_ID"];
 
     if (!key || !allowedKeys.includes(key)) {
       res.status(400).json({ error: "Некорректный ключ настройки" });
