@@ -36,12 +36,18 @@ Pre-quiz: remote experience level selector ("none" / "some"). 6 steps with valid
 
 - **Pre-step**: Remote experience level — "Нет опыта удалёнки" or "Уже работал(а) удалённо"
   - If saved state exists in localStorage, restore dialog is shown
+  - Link to readiness checklist (/readiness) for unsure users
 1. **Где вы находитесь** — Region (required) + Moscow time hours
-2. **Целевые должности** — Role groups with hh.ru IDs, quick exclusions, adjacent roles (at least 1 required)
-3. **Опыт работы** — Organization types, experience (required), activities (grouped)
-4. **Навыки и программы** — Software skills (7+ groups), professional skills (5+ groups)
+2. **Целевые должности** — Two-level accordion: category groups → specific roles. Max-height 300px with scroll. Badge shows selected count (highlighted) or total roles. Quick exclusions.
+3. **Опыт работы** — Organization types, experience (required), activities grouped with "show more" pattern (first 5 shown, rest behind button)
+4. **Навыки и программы** — Software skills with smart pre-select based on chosen roles (recommendation banner). Professional skills grouped.
 5. **Условия и ограничения** — Schedule, employment, salary, accessibility, restrictions
 6. **Проверка** — Summary with edit links + search preview
+
+### Quiz Features
+- **Step tooltips**: "?" icon on each step header shows inline help text explaining why the step matters. Closes automatically on step change.
+- **Smart program recommendations (step 4)**: Based on selected roles, recommended programs are suggested with a one-click "add" button. Resets when roles are modified.
+- **Activity simplification (step 3)**: Groups show first 5 items, rest behind "Показать ещё N" button.
 
 ### Quiz Validation (per step)
 - Step 1: Region required

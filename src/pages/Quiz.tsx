@@ -18,6 +18,7 @@ import {
   experiencedRoleGroups,
   experiencedSkillGroups,
   experiencedSoftwareGroups,
+  getRecommendedPrograms,
   organizationTypes,
   professionalSkillGroups,
   quickExclusionOptions,
@@ -30,7 +31,9 @@ import {
   targetRoleGroups,
 } from "@/data/quizData";
 import { useHrxState, loadQuizFromStorage, clearQuizStorage } from "@/context/hrx-state";
-import { RotateCcw, X } from "lucide-react";
+import { RotateCcw, X, ChevronDown, Lightbulb } from "lucide-react";
+
+const ACTIVITY_INITIAL_COUNT = 5;
 
 const times = Array.from({ length: 25 }, (_, index) => `${String(index).padStart(2, "0")}:00`);
 
@@ -70,6 +73,31 @@ const Quiz = () => {
   const [activeGroup, setActiveGroup] = useState<string>(targetRoleGroups[0].group);
   const [showRestore, setShowRestore] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
+  const [expandedActivities, setExpandedActivities] = useState<Record<string, boolean>>({});
+  const [recommendedApplied, setRecommendedApplied] = useState(false);
+  const [prevRolesKey, setPrevRolesKey] = useState(() => quizState.targetRoles.join(","));
+
+  const recommendedPrograms = useMemo(
+    () => getRecommendedPrograms(quizState.targetRoles),
+    [quizState.targetRoles],
+  );
+
+  useEffect(() => {
+    const key = quizState.targetRoles.join(",");
+    if (key !== prevRolesKey) {
+      setPrevRolesKey(key);
+      setRecommendedApplied(false);
+    }
+  }, [quizState.targetRoles, prevRolesKey]);
+
+  const applyRecommendedPrograms = () => {
+    for (const program of recommendedPrograms) {
+      if (!quizState.programLevels[program] || quizState.programLevels[program] === "none") {
+        dispatch({ type: "SET_PROGRAM_LEVEL", payload: { program, level: "basic" } });
+      }
+    }
+    setRecommendedApplied(true);
+  };
 
   useEffect(() => {
     if (!quizState.remoteExperience) {
@@ -211,6 +239,19 @@ const Quiz = () => {
                 </button>
               </div>
             </SectionCard>
+
+            <button
+              type="button"
+              onClick={() => navigate("/readiness")}
+              className="flex w-full items-start gap-3 rounded-card border border-border bg-card p-4 text-left transition-all hover:border-primary/30 hover:shadow-sm"
+              data-testid="link-readiness-from-quiz"
+            >
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">📋</span>
+              <div>
+                <p className="text-sm font-semibold">Не уверены? Пройдите чек-лист готовности</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Быстрый тест на 2 минуты — узнаете, готовы ли вы к удалённой работе</p>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -288,9 +329,13 @@ const Quiz = () => {
                   <AccordionItem key={group.group} value={group.group}>
                     <AccordionTrigger className="text-base no-underline hover:no-underline">
                       <span className="flex-1 text-left">{group.group}</span>
-                      <span className="mr-3 rounded-full border border-border px-2 py-0.5 text-sm text-muted-foreground">{selectedInGroup}</span>
+                      {selectedInGroup > 0 ? (
+                        <span className="mr-3 rounded-full bg-primary/10 border border-primary/30 px-2 py-0.5 text-sm font-semibold text-primary">{selectedInGroup}</span>
+                      ) : (
+                        <span className="mr-3 rounded-full border border-border px-2 py-0.5 text-sm text-muted-foreground">{group.roles.length}</span>
+                      )}
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-2">
+                    <AccordionContent className="max-h-[300px] space-y-2 overflow-y-auto">
                       {group.roles.map((role) => (
                         <OptionCard
                           key={role.title}
@@ -383,32 +428,71 @@ const Quiz = () => {
 
             <p className="text-[17px] font-bold pt-2">С какими задачами вы знакомы?</p>
             <Accordion type="multiple" className="space-y-2">
-              {allActivityGroups.map((group) => (
-                <AccordionItem key={group.group} value={group.group} className="rounded-card border border-border px-4">
-                  <AccordionTrigger className="text-base no-underline hover:no-underline">
-                    <span className="flex-1 text-left">{group.group}</span>
-                    <span className="mr-3 rounded-full border border-border px-2 py-0.5 text-sm text-muted-foreground">
-                      {group.items.filter(i => quizState.activities.includes(i)).length}
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-2">
-                    {group.items.map((option) => (
-                      <OptionCard
-                        key={option}
-                        title={option}
-                        selected={quizState.activities.includes(option)}
-                        onClick={() => dispatch({ type: "TOGGLE_ACTIVITY", payload: option })}
-                      />
-                    ))}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
+              {allActivityGroups.map((group) => {
+                const isExpanded = expandedActivities[group.group];
+                const visibleItems = isExpanded ? group.items : group.items.slice(0, ACTIVITY_INITIAL_COUNT);
+                const hasMore = group.items.length > ACTIVITY_INITIAL_COUNT;
+                const hiddenCount = group.items.length - ACTIVITY_INITIAL_COUNT;
+                const selectedCount = group.items.filter(i => quizState.activities.includes(i)).length;
+                return (
+                  <AccordionItem key={group.group} value={group.group} className="rounded-card border border-border px-4">
+                    <AccordionTrigger className="text-base no-underline hover:no-underline">
+                      <span className="flex-1 text-left">{group.group}</span>
+                      {selectedCount > 0 ? (
+                        <span className="mr-3 rounded-full bg-primary/10 border border-primary/30 px-2 py-0.5 text-sm font-semibold text-primary">{selectedCount}</span>
+                      ) : (
+                        <span className="mr-3 rounded-full border border-border px-2 py-0.5 text-sm text-muted-foreground">{group.items.length}</span>
+                      )}
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-2">
+                      {visibleItems.map((option) => (
+                        <OptionCard
+                          key={option}
+                          title={option}
+                          selected={quizState.activities.includes(option)}
+                          onClick={() => dispatch({ type: "TOGGLE_ACTIVITY", payload: option })}
+                        />
+                      ))}
+                      {hasMore && !isExpanded && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedActivities(prev => ({ ...prev, [group.group]: true }))}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                          Показать ещё {hiddenCount}
+                        </button>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
             </Accordion>
           </SectionCard>
         ) : null}
 
         {quizState.currentStep === 4 ? (
           <SectionCard title={quizSteps[3]}>
+            {recommendedPrograms.length > 0 && !recommendedApplied && (
+              <div className="flex items-start gap-3 rounded-card border border-primary/20 bg-primary/5 p-4">
+                <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm font-semibold">Рекомендуем программы для ваших ролей</p>
+                  <p className="text-sm text-muted-foreground">
+                    На основе выбранных должностей мы подобрали {recommendedPrograms.length} программ, которые часто нужны работодателям.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={applyRecommendedPrograms}>
+                    Добавить рекомендованные
+                  </Button>
+                </div>
+              </div>
+            )}
+            {recommendedApplied && (
+              <div className="flex items-center gap-2 rounded-card border border-green-200 bg-green-50/50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300">
+                <Lightbulb className="h-4 w-4 shrink-0" />
+                Рекомендованные программы добавлены. Вы можете изменить уровень для каждой.
+              </div>
+            )}
             <div className="space-y-3">
               <p className="text-[17px] font-bold">Программы и уровень</p>
               <p className="text-sm text-muted-foreground">Откройте нужную категорию и выберите уровень для каждой программы.</p>

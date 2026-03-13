@@ -328,7 +328,7 @@ vacancyRouter.post("/search", async (req: Request, res: Response) => {
     if (tvItems.status === "rejected") console.error("[VacancyCache] trudvsem.ru failed:", tvItems.reason);
 
     if (hhResult.length === 0 && tvResult.length === 0 && hhItems.status === "rejected" && tvItems.status === "rejected") {
-      res.status(502).json({ error: "Не удалось загрузить вакансии с hh.ru и trudvsem.ru" });
+      res.status(502).json({ error: "Не удалось загрузить вакансии. Серверы hh.ru и trudvsem.ru временно недоступны. Попробуйте через несколько минут." });
       return;
     }
 

@@ -438,3 +438,35 @@ export const experiencedSkillGroups: SkillGroup[] = [
     ],
   },
 ];
+
+export const roleToProgramsMap: Record<string, string[]> = {
+  "Документооборот и делопроизводство": ["Microsoft Word", "Microsoft Excel", "1С:Документооборот", "СЭД ДЕЛО", "Электронная почта (корпоративная)"],
+  "Административная поддержка": ["Microsoft Word", "Microsoft Excel", "Microsoft Outlook", "Google Docs / Sheets / Slides", "Bitrix24", "Электронная почта (корпоративная)", "Мессенджеры (Telegram, WhatsApp)"],
+  "Кадры и HR": ["1С:Зарплата и управление персоналом", "Microsoft Excel", "Microsoft Word", "Консультант Плюс", "Bitrix24"],
+  "Бухгалтерия и финансы": ["1С:Бухгалтерия", "Microsoft Excel", "Контур.Эльба / Контур.Экстерн", "СБИС", "Консультант Плюс"],
+  "Закупки, логистика, снабжение": ["Microsoft Excel", "1С:Предприятие (другие конфигурации)", "Bitrix24", "Электронная почта (корпоративная)"],
+  "Техподдержка и клиентский сервис": ["Bitrix24", "AmoCRM", "Мессенджеры (Telegram, WhatsApp)", "Видеозвонки (Zoom, Google Meet, Яндекс.Телемост)"],
+  "Контент и коммуникации": ["Google Docs / Sheets / Slides", "Мессенджеры (Telegram, WhatsApp)", "Видеозвонки (Zoom, Google Meet, Яндекс.Телемост)"],
+  "Юриспруденция": ["Консультант Плюс", "Гарант", "Microsoft Word", "1С:Документооборот"],
+  "Образование и обучение": ["Google Docs / Sheets / Slides", "Видеозвонки (Zoom, Google Meet, Яндекс.Телемост)", "Microsoft PowerPoint"],
+  "Аналитика и отчётность": ["Microsoft Excel", "Google Docs / Sheets / Slides", "1С:Предприятие (другие конфигурации)"],
+  "Координация и организация (удалёнка)": ["Bitrix24", "Trello / Asana / Jira", "Google Docs / Sheets / Slides", "Мессенджеры (Telegram, WhatsApp)", "Видеозвонки (Zoom, Google Meet, Яндекс.Телемост)"],
+};
+
+export function getRecommendedPrograms(selectedRoles: string[]): string[] {
+  const allGroups = [...targetRoleGroups, ...experiencedRoleGroups];
+  const groupNames = new Set<string>();
+  for (const role of selectedRoles) {
+    for (const g of allGroups) {
+      if (g.roles.some(r => r.title === role)) {
+        groupNames.add(g.group);
+      }
+    }
+  }
+  const programs = new Set<string>();
+  for (const gn of groupNames) {
+    const mapped = roleToProgramsMap[gn];
+    if (mapped) mapped.forEach(p => programs.add(p));
+  }
+  return Array.from(programs);
+}

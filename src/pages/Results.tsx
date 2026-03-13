@@ -454,27 +454,27 @@ const Results = () => {
                 </div>
               )}
 
-              <div className="flex gap-3">
-                <label className="flex min-h-[56px] flex-1 items-center justify-between rounded-card border border-border bg-card px-4">
-                  <span className="font-semibold">Дата публикации</span>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="flex min-h-[56px] items-center justify-between rounded-card border border-border bg-card px-4">
+                  <span className="font-semibold">Дата</span>
                   <select
                     value={state.jobsState.dateFilter}
                     onChange={(e) => dispatch({ type: "SET_DATE_FILTER", payload: e.target.value as "all" | "3" | "7" | "30" })}
-                    className="rounded-lg border border-border bg-background pl-3 pr-8 py-2 text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat"
+                    className="min-h-[44px] rounded-lg border border-border bg-background pl-3 pr-8 py-2 text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat"
                     data-testid="select-date-filter"
                   >
                     <option value="all">Все</option>
-                    <option value="3">Последние 3 дня</option>
-                    <option value="7">Последние 7 дней</option>
-                    <option value="30">Последние 30 дней</option>
+                    <option value="3">3 дня</option>
+                    <option value="7">7 дней</option>
+                    <option value="30">30 дней</option>
                   </select>
                 </label>
-                <label className="flex min-h-[56px] flex-1 items-center justify-between rounded-card border border-border bg-card px-4">
+                <label className="flex min-h-[56px] items-center justify-between rounded-card border border-border bg-card px-4">
                   <span className="font-semibold">Источник</span>
                   <select
                     value={sourceFilter}
                     onChange={(e) => setSourceFilter(e.target.value as "all" | "hh" | "tv")}
-                    className="rounded-lg border border-border bg-background pl-3 pr-8 py-2 text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat"
+                    className="min-h-[44px] rounded-lg border border-border bg-background pl-3 pr-8 py-2 text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat"
                     data-testid="select-source-filter"
                   >
                     <option value="all">Все</option>

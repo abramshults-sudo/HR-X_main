@@ -347,13 +347,33 @@ export async function searchAllVacancies(quiz: QuizState, forceRefresh = false):
 
   console.log("[JobApi] sending search request to backend...");
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Поиск вакансий занял слишком много времени. Попробуйте ещё раз или упростите параметры поиска.");
+    }
+    throw new Error("Не удалось подключиться к серверу. Проверьте интернет-соединение и попробуйте ещё раз.");
+  }
+  clearTimeout(timeout);
 
   if (!res.ok) {
+    if (res.status === 429) {
+      throw new Error("Слишком много запросов. Подождите минуту и попробуйте снова.");
+    }
+    if (res.status >= 500) {
+      throw new Error("Сервер временно недоступен. Попробуйте через несколько минут.");
+    }
     const errBody = await res.json().catch(() => ({ error: "Ошибка сервера" }));
     throw new Error(errBody.error || `Ошибка: ${res.status}`);
   }
