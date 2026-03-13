@@ -41,6 +41,15 @@ async function loadKeyFromDb(): Promise<string> {
   return getOpenAiKey();
 }
 
+async function loadSetting(key: string): Promise<string> {
+  try {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, key));
+    return row?.value || "";
+  } catch {
+    return "";
+  }
+}
+
 function buildAdaptPrompt(resumeText: string, vacancyText: string): string {
   return `Ты — профессиональный HR-консультант и эксперт по резюме для российского рынка труда. Твоя задача — адаптировать резюме кандидата под конкретную вакансию.
 
@@ -224,14 +233,20 @@ aiRouter.post("/adapt", requirePaid, async (req: Request, res: Response) => {
       .filter(Boolean)
       .join("\n");
 
+    const customPrompt = await loadSetting("PROMPT_ADAPT");
+    const modelAdapt = (await loadSetting("MODEL_ADAPT")) || "gpt-4o-mini";
+    const promptText = customPrompt
+      ? customPrompt.replaceAll("{{resume_text}}", resumeText).replaceAll("{{vacancy_text}}", vacancyFull)
+      : buildAdaptPrompt(resumeText, vacancyFull);
+
     const openai = new OpenAI({ apiKey });
 
     const adaptResponse = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: modelAdapt,
       messages: [
         {
           role: "user",
-          content: buildAdaptPrompt(resumeText, vacancyFull),
+          content: promptText,
         },
       ],
       temperature: 0.3,
@@ -393,12 +408,16 @@ aiRouter.post("/generate", requirePaid, async (req: Request, res: Response) => {
       return;
     }
 
-    const prompt = buildGeneratePrompt(quizData, mode || "regular");
+    const customPrompt = await loadSetting("PROMPT_GENERATE");
+    const modelGenerate = (await loadSetting("MODEL_GENERATE")) || "gpt-4o-mini";
+    const prompt = customPrompt
+      ? customPrompt.replaceAll("{{quiz_data}}", JSON.stringify(quizData))
+      : buildGeneratePrompt(quizData, mode || "regular");
 
     const openai = new OpenAI({ apiKey });
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: modelGenerate,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.4,
       response_format: { type: "json_object" },
@@ -522,14 +541,20 @@ aiRouter.post("/cover-letter", requirePaid, async (req: Request, res: Response) 
       .filter(Boolean)
       .join("\n");
 
+    const customCoverPrompt = await loadSetting("PROMPT_COVER_LETTER");
+    const modelCover = (await loadSetting("MODEL_COVER_LETTER")) || "gpt-4o-mini";
+    const coverPromptText = customCoverPrompt
+      ? customCoverPrompt.replaceAll("{{resume_text}}", resumeText).replaceAll("{{vacancy_text}}", vacancyFull)
+      : buildCoverLetterPrompt(resumeText, vacancyFull);
+
     const openai = new OpenAI({ apiKey });
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: modelCover,
       messages: [
         {
           role: "user",
-          content: buildCoverLetterPrompt(resumeText, vacancyFull),
+          content: coverPromptText,
         },
       ],
       temperature: 0.5,

@@ -183,7 +183,8 @@ Route: POST `/api/ai/generate` (payment-gated). Uses OpenAI GPT-4o-mini.
 Route: POST `/api/ai/cover-letter` (payment-gated). Uses OpenAI GPT-4o-mini. Generates a cover letter (up to 1000 chars) based on resume + vacancy.
 Features: ATS keyword integration, hallucination check, match scoring, cover letter generation.
 All AI endpoints check `hasPaid` status — unpaid users get 403.
+Prompts and models are configurable via admin panel (tab "Промпты"). Custom prompts stored in app_settings DB. Variables: {{resume_text}}, {{vacancy_text}} for adapt/cover-letter; {{quiz_data}} for generate. Empty prompt = use hardcoded default. Model selectable per task (gpt-4o-mini, gpt-4o, gpt-4-turbo, gpt-3.5-turbo).
 
 ## Admin Panel
 
-Route: `/admin` — password-protected. Stats, logs, promo codes, API key management, analytics IDs (Yandex Metrika, Google Analytics), user counter settings (real/demo mode + custom demo value).
+Route: `/admin` — password-protected. Stats, logs, promo codes, API key management, analytics IDs (Yandex Metrika, Google Analytics), user counter settings (real/demo mode + custom demo value), AI prompt editor (3 prompts + model selection per task).

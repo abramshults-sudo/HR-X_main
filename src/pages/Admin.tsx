@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, LogOut, ScrollText, Ticket, Key, Users, RefreshCw, Trash2, Plus, ToggleLeft, ToggleRight, Loader2, ShieldCheck, Copy, Eye, EyeOff, UserCheck, UserX, TrendingUp, CreditCard } from "lucide-react";
+import { Lock, LogOut, ScrollText, Ticket, Key, Users, RefreshCw, Trash2, Plus, ToggleLeft, ToggleRight, Loader2, ShieldCheck, Copy, Eye, EyeOff, UserCheck, UserX, TrendingUp, CreditCard, MessageSquare, Save, RotateCcw } from "lucide-react";
 
 interface AdminLog {
   id: number;
@@ -173,6 +173,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
+  const [prompts, setPrompts] = useState<Record<string, string>>({});
+  const [promptsLoading, setPromptsLoading] = useState(false);
+  const [promptSaving, setPromptSaving] = useState<string | null>(null);
+
   const loadStats = useCallback(async () => {
     try {
       const res = await api("/api/admin/stats");
@@ -218,6 +222,40 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       setSettingsLoading(false);
     }
   }, [toast]);
+
+  const loadPrompts = useCallback(async () => {
+    setPromptsLoading(true);
+    try {
+      const res = await api("/api/admin/prompts");
+      if (res.ok) setPrompts(await res.json());
+    } catch {
+      toast({ title: "Ошибка", description: "Не удалось загрузить промпты", variant: "destructive" });
+    } finally {
+      setPromptsLoading(false);
+    }
+  }, [toast]);
+
+  const savePrompt = async (key: string, value: string) => {
+    setPromptSaving(key);
+    try {
+      const res = await api("/api/admin/prompts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value }),
+      });
+      if (res.ok) {
+        toast({ title: "Сохранено" });
+        loadPrompts();
+      } else {
+        const d = await res.json();
+        toast({ title: "Ошибка", description: d.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Ошибка сети", variant: "destructive" });
+    } finally {
+      setPromptSaving(null);
+    }
+  };
 
   useEffect(() => { loadStats(); }, [loadStats]);
 
@@ -391,8 +429,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           setActiveTab(v);
           if (v === "promos") loadPromos();
           if (v === "keys") loadSettings();
+          if (v === "prompts") loadPrompts();
         }}>
-          <TabsList className="grid h-auto w-full grid-cols-3 gap-2 rounded-lg bg-secondary p-1.5">
+          <TabsList className="grid h-auto w-full grid-cols-4 gap-2 rounded-lg bg-secondary p-1.5">
             <TabsTrigger value="logs" className="min-h-[44px] rounded-md text-sm font-semibold" data-testid="tab-admin-logs">
               <ScrollText className="mr-1.5 h-4 w-4" /> Логи
             </TabsTrigger>
@@ -401,6 +440,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </TabsTrigger>
             <TabsTrigger value="keys" className="min-h-[44px] rounded-md text-sm font-semibold" data-testid="tab-admin-keys">
               <Key className="mr-1.5 h-4 w-4" /> API-ключи
+            </TabsTrigger>
+            <TabsTrigger value="prompts" className="min-h-[44px] rounded-md text-sm font-semibold" data-testid="tab-admin-prompts">
+              <MessageSquare className="mr-1.5 h-4 w-4" /> Промпты
             </TabsTrigger>
           </TabsList>
 
@@ -586,9 +628,152 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="prompts" className="space-y-4">
+            {promptsLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : (
+              <>
+                <PromptEditor
+                  title="Генерация резюме"
+                  description="Промпт для создания резюме из данных квиза. Переменная {{quiz_data}} будет заменена на JSON с ответами пользователя. Если пусто — используется встроенный промпт."
+                  promptKey="PROMPT_GENERATE"
+                  modelKey="MODEL_GENERATE"
+                  prompts={prompts}
+                  setPrompts={setPrompts}
+                  onSave={savePrompt}
+                  saving={promptSaving}
+                />
+                <PromptEditor
+                  title="Адаптация резюме под вакансию"
+                  description="Промпт для адаптации резюме под конкретную вакансию. Переменные: {{resume_text}} — текст резюме, {{vacancy_text}} — текст вакансии. Ответ должен быть в JSON. Если пусто — используется встроенный промпт."
+                  promptKey="PROMPT_ADAPT"
+                  modelKey="MODEL_ADAPT"
+                  prompts={prompts}
+                  setPrompts={setPrompts}
+                  onSave={savePrompt}
+                  saving={promptSaving}
+                />
+                <PromptEditor
+                  title="Сопроводительное письмо"
+                  description="Промпт для генерации сопроводительного письма. Переменные: {{resume_text}} — текст резюме, {{vacancy_text}} — текст вакансии. Если пусто — используется встроенный промпт."
+                  promptKey="PROMPT_COVER_LETTER"
+                  modelKey="MODEL_COVER_LETTER"
+                  prompts={prompts}
+                  setPrompts={setPrompts}
+                  onSave={savePrompt}
+                  saving={promptSaving}
+                />
+              </>
+            )}
+          </TabsContent>
         </Tabs>
       </main>
     </div>
+  );
+}
+
+const MODEL_OPTIONS = [
+  "gpt-4o-mini",
+  "gpt-4o",
+  "gpt-4-turbo",
+  "gpt-3.5-turbo",
+];
+
+function PromptEditor({
+  title,
+  description,
+  promptKey,
+  modelKey,
+  prompts,
+  setPrompts,
+  onSave,
+  saving,
+}: {
+  title: string;
+  description: string;
+  promptKey: string;
+  modelKey: string;
+  prompts: Record<string, string>;
+  setPrompts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  onSave: (key: string, value: string) => Promise<void>;
+  saving: string | null;
+}) {
+  const promptValue = prompts[promptKey] || "";
+  const modelValue = prompts[modelKey] || "gpt-4o-mini";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <MessageSquare className="h-4 w-4" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">{description}</p>
+
+        <div className="space-y-2">
+          <label className="text-sm font-semibold">Модель</label>
+          <div className="flex items-center gap-2">
+            <select
+              value={modelValue}
+              onChange={(e) => setPrompts((prev) => ({ ...prev, [modelKey]: e.target.value }))}
+              className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              {MODEL_OPTIONS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              onClick={() => onSave(modelKey, modelValue)}
+              disabled={saving === modelKey}
+            >
+              {saving === modelKey ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
+              Сохранить модель
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-semibold">Промпт</label>
+            <div className="flex gap-1">
+              {promptValue && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setPrompts((prev) => ({ ...prev, [promptKey]: "" }))}
+                  title="Сбросить к встроенному"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+          <textarea
+            value={promptValue}
+            onChange={(e) => setPrompts((prev) => ({ ...prev, [promptKey]: e.target.value }))}
+            placeholder="Пусто = используется встроенный промпт по умолчанию"
+            rows={12}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-y min-h-[120px]"
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              {promptValue ? `${promptValue.length} символов` : "Используется встроенный промпт"}
+            </span>
+            <Button
+              size="sm"
+              onClick={() => onSave(promptKey, promptValue)}
+              disabled={saving === promptKey}
+            >
+              {saving === promptKey ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
+              Сохранить промпт
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

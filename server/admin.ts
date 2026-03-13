@@ -344,6 +344,65 @@ adminRouter.put("/settings", requireAdmin, async (req: Request, res: Response) =
   }
 });
 
+adminRouter.get("/prompts", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const settings = await db.select().from(appSettings);
+    const map: Record<string, string> = {};
+    for (const s of settings) map[s.key] = s.value;
+
+    res.json({
+      PROMPT_GENERATE: map["PROMPT_GENERATE"] || "",
+      PROMPT_ADAPT: map["PROMPT_ADAPT"] || "",
+      PROMPT_COVER_LETTER: map["PROMPT_COVER_LETTER"] || "",
+      MODEL_GENERATE: map["MODEL_GENERATE"] || "gpt-4o-mini",
+      MODEL_ADAPT: map["MODEL_ADAPT"] || "gpt-4o-mini",
+      MODEL_COVER_LETTER: map["MODEL_COVER_LETTER"] || "gpt-4o-mini",
+    });
+  } catch (err) {
+    console.error("Get prompts error:", err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+adminRouter.put("/prompts", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { key, value } = req.body;
+    const allowedKeys = ["PROMPT_GENERATE", "PROMPT_ADAPT", "PROMPT_COVER_LETTER", "MODEL_GENERATE", "MODEL_ADAPT", "MODEL_COVER_LETTER"];
+
+    if (!key || !allowedKeys.includes(key)) {
+      res.status(400).json({ error: "Некорректный ключ" });
+      return;
+    }
+
+    if (typeof value !== "string") {
+      res.status(400).json({ error: "Некорректное значение" });
+      return;
+    }
+
+    if (key.startsWith("PROMPT_") && value.length > 50000) {
+      res.status(400).json({ error: "Промпт слишком длинный (максимум 50000 символов)" });
+      return;
+    }
+
+    const allowedModels = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"];
+    if (key.startsWith("MODEL_") && !allowedModels.includes(value)) {
+      res.status(400).json({ error: `Допустимые модели: ${allowedModels.join(", ")}` });
+      return;
+    }
+
+    await db
+      .insert(appSettings)
+      .values({ key, value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+
+    addLog("settings", "prompt_updated", { key, length: value.length });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Update prompt error:", err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
 function maskKey(key: string): string {
   if (key.length <= 8) return "****";
   return key.slice(0, 4) + "****" + key.slice(-4);
