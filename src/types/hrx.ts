@@ -78,6 +78,7 @@ export interface JobsState {
   jobs: JobItem[];
   decisions: Record<string, SwipeDecision>;
   decisionHistory: string[];
+  dismissedJobIds: string[];
   sortMode: JobSortMode;
   hideNotRecommended: boolean;
   showScoring: boolean;

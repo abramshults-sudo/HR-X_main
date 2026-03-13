@@ -10,6 +10,7 @@ import {
   getResultLevel,
   type Answer,
 } from "@/data/readinessData";
+import { guides } from "@/data/guidesData";
 import {
   CheckCircle2,
   AlertCircle,
@@ -58,7 +59,7 @@ const Readiness = () => {
 
   const answerBtnClass = (value: Answer, active: boolean) => {
     const base =
-      "flex-1 min-w-[90px] py-3 px-4 rounded-xl text-base font-medium border-2 transition-all duration-200 ";
+      "flex-1 min-w-[90px] min-h-[44px] py-3 px-4 rounded-xl text-base font-medium border-2 transition-all duration-200 ";
     if (!active)
       return (
         base +
@@ -236,6 +237,7 @@ const Readiness = () => {
           {weakIndexes.map((idx) => {
             const q = readinessQuestions[idx];
             const isNo = answers[idx] === "no";
+            const linkedGuide = q.guideId ? guides.find(g => g.id === q.guideId) : null;
             return (
               <Card
                 key={idx}
@@ -246,6 +248,15 @@ const Readiness = () => {
                     {q.text}
                   </p>
                   <p className="text-sm leading-relaxed">{q.recommendation}</p>
+                  {linkedGuide && (
+                    <button
+                      onClick={() => navigate(`/guides/${linkedGuide.id}`)}
+                      className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                    >
+                      <BookOpen className="h-3.5 w-3.5" />
+                      {linkedGuide.title}
+                    </button>
+                  )}
                 </CardContent>
               </Card>
             );

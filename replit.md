@@ -89,7 +89,7 @@ Jobs can be filtered by source (hh.ru, trudvsem.ru, or all) via dropdown in Resu
 ### Free users (not paid):
 - Full resume preview (SectionCard)
 - Registration banner for anonymous users
-- 8 best-matching job cards with match scores
+- 5 best-matching job cards with match scores
 - Paywall upgrade card
 
 ### Paid users:
@@ -101,8 +101,25 @@ Jobs can be filtered by source (hh.ru, trudvsem.ru, or all) via dropdown in Resu
 ### Job Cards
 - Match percentage badge (green/yellow/gray)
 - Green "ИИ адаптация резюме" button (prominent)
+- "Не подходит" dismiss button (removes card from view, stored in state.jobsState.dismissedJobIds)
 - Company scoring toggle
 - Details accordion with source link
+
+### Onboarding Tooltips
+- 3-step tooltip tour on first visit to /results (paid view)
+- Highlights Resume, Jobs, Export tabs
+- Stored in localStorage (`hrx_onboarding_shown`), shown once
+
+### Error Handling
+- Server: `mapOpenAiError()` function in server/ai.ts maps OpenAI errors to user-friendly Russian messages
+- Handles: invalid key, rate limit, insufficient quota, 502/503, connection errors, timeouts
+- Frontend: catch blocks in Results.tsx and AdaptResult.tsx distinguish network errors from server errors
+- Vacancy search: backend returns specific messages when hh.ru/trudvsem.ru are unavailable
+
+### Readiness Checklist Integration
+- Linked from Index page, Quiz step 1 (pre-quiz), and Guides
+- Result page links weak areas to relevant guides via `guideId` in readinessData
+- Guide IDs linked: video-interview (q3), first-day (q7)
 
 ## Company Scoring System
 
@@ -113,7 +130,7 @@ Score levels: trusted (75+), normal (50-74), suspicious (30-49), risky (<30).
 
 Price: 300 ₽ (payment not yet connected, testing via promo codes).
 
-- Free users see: quiz (full), 8 job previews with match scores, resume preview
+- Free users see: quiz (full), 5 job previews with match scores, resume preview
 - Paid users see: full job list with filters, full resume + export, AI adaptation, presets and archive
 - Features promoted in paywall: AI resume adaptation (first), all vacancies, full resume, company checks
 

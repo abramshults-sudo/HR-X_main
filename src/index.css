@@ -158,4 +158,12 @@
     background-size: 20px;
     padding-right: 48px;
   }
+
+}
+
+@layer utilities {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

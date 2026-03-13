@@ -2,6 +2,7 @@ export interface ReadinessQuestion {
   id: number;
   text: string;
   recommendation: string;
+  guideId?: string;
 }
 
 export const readinessQuestions: ReadinessQuestion[] = [
@@ -19,6 +20,7 @@ export const readinessQuestions: ReadinessQuestion[] = [
     id: 3,
     text: "Вы умеете пользоваться видеозвонками?",
     recommendation: "Установите Zoom или Google Meet и потренируйтесь заранее. Достаточно понять, как войти в звонок, включить звук и камеру.",
+    guideId: "video-interview",
   },
   {
     id: 4,
@@ -39,6 +41,7 @@ export const readinessQuestions: ReadinessQuestion[] = [
     id: 7,
     text: "Вы можете сами планировать рабочий день без постоянного контроля?",
     recommendation: "Попробуйте простой режим: начало работы, список задач, короткие перерывы и завершение дня. Это помогает не уставать и не теряться.",
+    guideId: "first-day",
   },
   {
     id: 8,

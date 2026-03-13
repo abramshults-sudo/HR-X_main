@@ -50,6 +50,35 @@ async function loadSetting(key: string): Promise<string> {
   }
 }
 
+function mapOpenAiError(err: any): string {
+  if (err?.status === 401 || err?.code === "invalid_api_key") {
+    return "Неверный API-ключ OpenAI. Обратитесь к администратору.";
+  }
+  if (err?.status === 429) {
+    return "Сервис ИИ перегружен. Подождите 1-2 минуты и попробуйте снова.";
+  }
+  if (err?.status === 402 || err?.code === "insufficient_quota") {
+    return "Недостаточно средств на аккаунте OpenAI. Обратитесь к администратору.";
+  }
+  if (err?.status === 503 || err?.status === 502) {
+    return "Сервис ИИ временно недоступен. Попробуйте через несколько минут.";
+  }
+  if (err?.code === "ECONNREFUSED" || err?.code === "ENOTFOUND" || err?.code === "ECONNRESET") {
+    return "Не удалось подключиться к сервису ИИ. Попробуйте через несколько минут.";
+  }
+  if (err?.code === "ETIMEDOUT" || err?.type === "request-timeout") {
+    return "Запрос к ИИ занял слишком много времени. Попробуйте ещё раз.";
+  }
+  return "Произошла ошибка при обработке запроса. Попробуйте ещё раз через несколько секунд.";
+}
+
+function mapOpenAiErrorStatus(err: any): number {
+  if (err?.status === 401 || err?.code === "invalid_api_key") return 400;
+  if (err?.status === 429) return 429;
+  if (err?.status === 402 || err?.code === "insufficient_quota") return 402;
+  return 500;
+}
+
 function buildAdaptPrompt(resumeText: string, vacancyText: string): string {
   return `Ты — профессиональный HR-консультант и эксперт по резюме для российского рынка труда. Твоя задача — адаптировать резюме кандидата под конкретную вакансию.
 
@@ -370,21 +399,7 @@ ${adaptResult.adaptedResume}
     });
   } catch (err: any) {
     console.error("AI adapt error:", err);
-
-    if (err?.status === 401 || err?.code === "invalid_api_key") {
-      res.status(400).json({ error: "Неверный API-ключ OpenAI" });
-      return;
-    }
-    if (err?.status === 429) {
-      res.status(429).json({ error: "Превышен лимит запросов OpenAI. Попробуйте позже." });
-      return;
-    }
-    if (err?.status === 402 || err?.code === "insufficient_quota") {
-      res.status(402).json({ error: "Недостаточно средств на аккаунте OpenAI" });
-      return;
-    }
-
-    res.status(500).json({ error: "Ошибка генерации. Попробуйте позже." });
+    res.status(mapOpenAiErrorStatus(err)).json({ error: mapOpenAiError(err) });
   }
 });
 
@@ -456,21 +471,7 @@ aiRouter.post("/generate", requirePaid, async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error("AI generate error:", err);
-
-    if (err?.status === 401 || err?.code === "invalid_api_key") {
-      res.status(400).json({ error: "Неверный API-ключ OpenAI" });
-      return;
-    }
-    if (err?.status === 429) {
-      res.status(429).json({ error: "Превышен лимит запросов OpenAI. Попробуйте позже." });
-      return;
-    }
-    if (err?.status === 402 || err?.code === "insufficient_quota") {
-      res.status(402).json({ error: "Недостаточно средств на аккаунте OpenAI" });
-      return;
-    }
-
-    res.status(500).json({ error: "Ошибка генерации. Попробуйте позже." });
+    res.status(mapOpenAiErrorStatus(err)).json({ error: mapOpenAiError(err) });
   }
 });
 
@@ -589,21 +590,7 @@ aiRouter.post("/cover-letter", requirePaid, async (req: Request, res: Response) 
     res.json({ coverLetter: content.trim() });
   } catch (err: any) {
     console.error("AI cover letter error:", err);
-
-    if (err?.status === 401 || err?.code === "invalid_api_key") {
-      res.status(400).json({ error: "Неверный API-ключ OpenAI" });
-      return;
-    }
-    if (err?.status === 429) {
-      res.status(429).json({ error: "Превышен лимит запросов OpenAI. Попробуйте позже." });
-      return;
-    }
-    if (err?.status === 402 || err?.code === "insufficient_quota") {
-      res.status(402).json({ error: "Недостаточно средств на аккаунте OpenAI" });
-      return;
-    }
-
-    res.status(500).json({ error: "Ошибка генерации. Попробуйте позже." });
+    res.status(mapOpenAiErrorStatus(err)).json({ error: mapOpenAiError(err) });
   }
 });
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ExternalLink, MapPin, ShieldCheck, ShieldAlert, CheckCircle, AlertTriangle, Sparkles } from "lucide-react";
+import { ChevronDown, ExternalLink, MapPin, ShieldCheck, ShieldAlert, CheckCircle, AlertTriangle, Sparkles, ThumbsDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { JobItem } from "@/types/hrx";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,10 @@ interface JobCardProps {
   job: JobItem;
   showScoring?: boolean;
   matchScore?: number;
+  onDismiss?: (jobId: string) => void;
 }
 
-export const JobCard = ({ job, showScoring = false, matchScore }: JobCardProps) => {
+export const JobCard = ({ job, showScoring = false, matchScore, onDismiss }: JobCardProps) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -55,14 +56,14 @@ export const JobCard = ({ job, showScoring = false, matchScore }: JobCardProps) 
         </div>
 
         <div className="grid gap-2 md:grid-cols-2">
-          <Button variant="outline" onClick={() => setOpen((prev) => !prev)} className="justify-between" data-testid={`button-details-${job.id}`}>
+          <Button variant="outline" onClick={() => setOpen((prev) => !prev)} className="min-h-[44px] justify-between" data-testid={`button-details-${job.id}`}>
             Подробности
             <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
           </Button>
           <Button
             variant="hero"
             asChild
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             <Link to={`/results/adapt/${job.id}`} data-testid={`link-adapt-${job.id}`} className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
@@ -70,6 +71,18 @@ export const JobCard = ({ job, showScoring = false, matchScore }: JobCardProps) 
             </Link>
           </Button>
         </div>
+
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={() => onDismiss(job.id)}
+            className="flex items-center gap-1.5 self-start rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            data-testid={`button-dismiss-${job.id}`}
+          >
+            <ThumbsDown className="h-3.5 w-3.5" />
+            Не подходит
+          </button>
+        )}
 
         {open ? (
           <div className="space-y-3 rounded-card border border-border bg-secondary p-4 text-sm">

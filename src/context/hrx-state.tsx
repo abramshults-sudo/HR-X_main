@@ -40,6 +40,7 @@ type Action =
   | { type: "SET_JOBS_ERROR"; payload: string | null }
   | { type: "SET_JOBS"; payload: JobItem[] }
   | { type: "DECIDE_JOB"; payload: { id: string; decision: SwipeDecision } }
+  | { type: "DISMISS_JOB"; payload: string }
   | { type: "UNDO_LAST_SWIPE" }
   | { type: "SET_SORT_MODE"; payload: JobSortMode }
   | { type: "LOAD_QUIZ_STATE"; payload: QuizState; targetStep?: QuizState["currentStep"] };
@@ -80,6 +81,7 @@ const initialState: HrxState = {
     jobs: [],
     decisions: {},
     decisionHistory: [],
+    dismissedJobIds: [],
     sortMode: "list",
     hideNotRecommended: false,
     showScoring: true,
@@ -228,7 +230,7 @@ const reducer = (state: HrxState, action: Action): HrxState => {
     case "SET_JOBS_ERROR":
       return { ...state, jobsState: { ...state.jobsState, error: action.payload, isLoading: false } };
     case "SET_JOBS":
-      return { ...state, jobsState: { ...state.jobsState, jobs: action.payload, decisions: {}, decisionHistory: [], isLoading: false, searchCompleted: true } };
+      return { ...state, jobsState: { ...state.jobsState, jobs: action.payload, decisions: {}, decisionHistory: [], dismissedJobIds: [], isLoading: false, searchCompleted: true } };
     case "DECIDE_JOB": {
       const { id, decision } = action.payload;
       return {
@@ -240,6 +242,16 @@ const reducer = (state: HrxState, action: Action): HrxState => {
         },
       };
     }
+    case "DISMISS_JOB":
+      return {
+        ...state,
+        jobsState: {
+          ...state.jobsState,
+          dismissedJobIds: state.jobsState.dismissedJobIds.includes(action.payload)
+            ? state.jobsState.dismissedJobIds
+            : [...state.jobsState.dismissedJobIds, action.payload],
+        },
+      };
     case "UNDO_LAST_SWIPE": {
       if (state.jobsState.decisionHistory.length === 0) return state;
       const lastId = state.jobsState.decisionHistory[state.jobsState.decisionHistory.length - 1];

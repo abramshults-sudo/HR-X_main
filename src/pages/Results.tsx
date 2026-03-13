@@ -16,8 +16,9 @@ import { PaywallUpgradeCard } from "@/components/Paywall";
 import { Loader2, RefreshCw, AlertCircle, FileText, FileDown, FileSpreadsheet, Info, ShieldCheck, ArrowLeft, Clock, Sparkles, Copy, Check, Lightbulb, Search, UserPlus, Briefcase } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { JobStructuredData } from "@/components/JobStructuredData";
+import { OnboardingTooltips } from "@/components/OnboardingTooltips";
 
-const FREE_PREVIEW_JOBS = 8;
+const FREE_PREVIEW_JOBS = 5;
 
 function formatCacheAge(cachedAt: string): string {
   const diff = Date.now() - new Date(cachedAt).getTime();
@@ -155,8 +156,12 @@ const Results = () => {
       setAiTips(data.tips || []);
       setShowAiResume(true);
       trackEvent("resume_generate");
-    } catch {
-      setAiError("Ошибка сети. Попробуйте позже.");
+    } catch (err) {
+      if (err instanceof TypeError && err.message === "Failed to fetch") {
+        setAiError("Не удалось подключиться к серверу. Проверьте интернет-соединение и попробуйте ещё раз.");
+      } else {
+        setAiError("Произошла ошибка при генерации резюме. Попробуйте ещё раз через несколько секунд.");
+      }
     } finally {
       setAiLoading(false);
     }
@@ -207,10 +212,16 @@ const Results = () => {
   const [showLowMatch, setShowLowMatch] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<"all" | "hh" | "tv">("all");
 
+  const handleDismissJob = useCallback((jobId: string) => {
+    dispatch({ type: "DISMISS_JOB", payload: jobId });
+  }, [dispatch]);
+
   const visibleJobs = useMemo(() => {
-    let filtered = state.jobsState.hideNotRecommended
-      ? state.jobsState.jobs.filter((j) => j.status !== "not_recommended")
-      : state.jobsState.jobs;
+    const dismissed = new Set(state.jobsState.dismissedJobIds);
+    let filtered = state.jobsState.jobs.filter((j) => !dismissed.has(j.id));
+    if (state.jobsState.hideNotRecommended) {
+      filtered = filtered.filter((j) => j.status !== "not_recommended");
+    }
 
     const { dateFilter } = state.jobsState;
     if (dateFilter !== "all") {
@@ -228,7 +239,7 @@ const Results = () => {
     }
 
     return filtered;
-  }, [state.jobsState.jobs, state.jobsState.hideNotRecommended, state.jobsState.dateFilter, sourceFilter]);
+  }, [state.jobsState.jobs, state.jobsState.dismissedJobIds, state.jobsState.hideNotRecommended, state.jobsState.dateFilter, sourceFilter]);
 
   const scoredJobs = useMemo(() => {
     return visibleJobs
@@ -316,7 +327,7 @@ const Results = () => {
               </div>
 
               {freeJobs.map(({ job, matchScore }) => (
-                <JobCard key={job.id} job={job} showScoring={false} matchScore={matchScore} />
+                <JobCard key={job.id} job={job} showScoring={false} matchScore={matchScore} onDismiss={handleDismissJob} />
               ))}
 
               {remainingCount > 0 && (
@@ -347,6 +358,7 @@ const Results = () => {
   return (
     <AppLayout>
       <JobStructuredData jobs={state.jobsState.jobs} />
+      <OnboardingTooltips />
       <div className="mx-auto max-w-4xl space-y-6 md:space-y-8">
         <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-primary" data-testid="button-back">
           <ArrowLeft className="h-4 w-4" />
@@ -575,7 +587,7 @@ const Results = () => {
                   Найдено: {displayedScoredJobs.length}{lowMatchJobs.length > 0 && !showLowMatch ? ` (ещё ${lowMatchJobs.length} с низким совпадением)` : ""}
                 </p>
                 {displayedScoredJobs.map(({ job, matchScore }) => (
-                  <JobCard key={job.id} job={job} showScoring={state.jobsState.showScoring} matchScore={matchScore} />
+                  <JobCard key={job.id} job={job} showScoring={state.jobsState.showScoring} matchScore={matchScore} onDismiss={handleDismissJob} />
                 ))}
                 {lowMatchJobs.length > 0 && !showLowMatch && (
                   <Button variant="outline" className="w-full" onClick={() => setShowLowMatch(true)}>

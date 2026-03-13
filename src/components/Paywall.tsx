@@ -229,7 +229,7 @@ export function FreeContentBanner({ totalJobs = 0 }: { totalJobs?: number }) {
             </p>
             <ul className="space-y-0.5 text-sm text-emerald-700 dark:text-emerald-400">
               <li>• Предпросмотр резюме (начало текста)</li>
-              <li>• 8 подходящих вакансий{totalJobs > 8 ? ` из ${totalJobs} найденных` : " из найденных"}</li>
+              <li>• 5 подходящих вакансий{totalJobs > 5 ? ` из ${totalJobs} найденных` : " из найденных"}</li>
               <li>• Чек-лист готовности и полезные гайды</li>
             </ul>
           </div>

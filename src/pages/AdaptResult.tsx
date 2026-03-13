@@ -78,8 +78,12 @@ const AdaptResult = () => {
 
       setResult(data);
       trackEvent("resume_adapt");
-    } catch {
-      setError("Ошибка сети. Попробуйте позже.");
+    } catch (err) {
+      if (err instanceof TypeError && err.message === "Failed to fetch") {
+        setError("Не удалось подключиться к серверу. Проверьте интернет-соединение и попробуйте ещё раз.");
+      } else {
+        setError("Произошла ошибка при адаптации резюме. Попробуйте ещё раз через несколько секунд.");
+      }
     } finally {
       setLoading(false);
     }
@@ -129,8 +133,12 @@ const AdaptResult = () => {
 
       setCoverLetter(data.coverLetter);
       trackEvent("cover_letter_generated");
-    } catch {
-      setCoverError("Ошибка сети. Попробуйте позже.");
+    } catch (err) {
+      if (err instanceof TypeError && err.message === "Failed to fetch") {
+        setCoverError("Не удалось подключиться к серверу. Проверьте интернет-соединение и попробуйте ещё раз.");
+      } else {
+        setCoverError("Произошла ошибка при генерации письма. Попробуйте ещё раз через несколько секунд.");
+      }
     } finally {
       setCoverLoading(false);
     }
