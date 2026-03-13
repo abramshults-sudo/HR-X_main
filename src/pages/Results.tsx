@@ -433,13 +433,6 @@ const Results = () => {
           </TabsContent>
 
           <TabsContent value="jobs" className="space-y-4">
-            <div className="flex items-start gap-2 rounded-card border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-              <p className="text-sm text-blue-800 dark:text-blue-300">
-                Нажмите «ИИ адаптация» у любой вакансии — ИИ подготовит резюме специально под неё
-              </p>
-            </div>
-
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <label className="flex min-h-[56px] flex-1 items-center justify-between rounded-card border border-border bg-card px-4">
@@ -572,6 +565,12 @@ const Results = () => {
               </div>
             ) : (
               <div className="space-y-3">
+                <div className="flex items-center gap-2.5 rounded-card border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-950/30">
+                  <Sparkles className="h-5 w-5 shrink-0 text-emerald-600" />
+                  <p className="text-sm text-emerald-800 dark:text-emerald-300">
+                    <span className="font-semibold">Совет:</span> нажмите кнопку «ИИ адаптация резюме» у любой вакансии — ИИ подготовит резюме специально под неё
+                  </p>
+                </div>
                 <p className="text-sm text-muted-foreground" data-testid="text-jobs-count">
                   Найдено: {displayedScoredJobs.length}{lowMatchJobs.length > 0 && !showLowMatch ? ` (ещё ${lowMatchJobs.length} с низким совпадением)` : ""}
                 </p>

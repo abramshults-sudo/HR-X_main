@@ -302,6 +302,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     YOOKASSA_SECRET_KEY: "ЮKassa Secret Key",
     YANDEX_METRIKA_ID: "Яндекс.Метрика (ID счётчика)",
     GOOGLE_ANALYTICS_ID: "Google Analytics (ID, напр. G-XXXXXXXXXX)",
+    USER_COUNTER_MODE: "Счётчик на главной (real = реальный, demo = своё значение)",
+    USER_COUNTER_DEMO_VALUE: "Демо-значение счётчика (число)",
   };
 
   return (

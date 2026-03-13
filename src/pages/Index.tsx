@@ -1,7 +1,8 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { FileText, Search, Sparkles, Clock, ClipboardCheck, BookOpen } from "lucide-react";
+import { FileText, Search, Sparkles, Clock, ClipboardCheck, BookOpen, Users } from "lucide-react";
 
 const benefits = [
   {
@@ -28,6 +29,14 @@ const benefits = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const [userCount, setUserCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/user-count-public")
+      .then((r) => r.json())
+      .then((d) => { if (d.count > 0) setUserCount(d.count); })
+      .catch(() => {});
+  }, []);
 
   return (
     <AppLayout centered>
@@ -72,6 +81,13 @@ const Index = () => {
         <p className="text-xs text-muted-foreground" data-testid="text-trust-note">
           Начать можно без регистрации. Для сохранения результатов — создайте аккаунт (бесплатно)
         </p>
+
+        {userCount !== null && userCount > 0 && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground" data-testid="text-user-counter">
+            <Users className="h-4 w-4" />
+            <span>Уже воспользовались: <span className="font-semibold text-foreground">{userCount.toLocaleString("ru-RU")}</span> человек</span>
+          </div>
+        )}
 
         <div className="mx-auto h-px w-16 rounded-full bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20" />
 

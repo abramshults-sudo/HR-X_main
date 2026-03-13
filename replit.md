@@ -123,6 +123,7 @@ Price: 300 ₽ (payment not yet connected, testing via promo codes).
 - Subtitle: "Пройдите 10-минутный опрос — получите готовое резюме и список вакансий"
 - Benefits: resume, job search, AI adaptation per vacancy, speed
 - Trust note: "Начать можно без регистрации. Для сохранения результатов — создайте аккаунт (бесплатно)"
+- User counter: fetches from `/api/admin/user-count-public` (real DB count or demo value from admin settings)
 - Links: Readiness checklist, Guides
 
 ## SEO
@@ -184,4 +185,4 @@ Both endpoints check `hasPaid` status — unpaid users get 403.
 
 ## Admin Panel
 
-Route: `/admin` — password-protected. Stats, logs, promo codes, API key management, analytics IDs (Yandex Metrika, Google Analytics).
+Route: `/admin` — password-protected. Stats, logs, promo codes, API key management, analytics IDs (Yandex Metrika, Google Analytics), user counter settings (real/demo mode + custom demo value).

@@ -95,6 +95,34 @@ adminRouter.get("/logs", requireAdmin, async (req: Request, res: Response) => {
   }
 });
 
+adminRouter.get("/user-count-public", async (req: Request, res: Response) => {
+  try {
+    const settings = await db.select().from(appSettings);
+    const map: Record<string, string> = {};
+    for (const s of settings) map[s.key] = s.value;
+
+    const mode = map["USER_COUNTER_MODE"] || "real";
+    const demoValue = parseInt(map["USER_COUNTER_DEMO_VALUE"] || "0", 10);
+
+    if (mode === "demo" && demoValue > 0) {
+      res.json({ count: demoValue, mode: "demo" });
+      return;
+    }
+
+    const [registeredUsers] = await db.select({ count: sql<number>`count(*)` }).from(users);
+    let uniqueVisitors = 0;
+    try {
+      const visitResult = await db.execute(sql`SELECT count(DISTINCT session_id) as cnt FROM visits WHERE path = '/results' AND session_id IS NOT NULL`);
+      uniqueVisitors = Number((visitResult as any).rows?.[0]?.cnt || (visitResult as any)[0]?.cnt || 0);
+    } catch {}
+    const totalUsers = Math.max(Number(registeredUsers.count), uniqueVisitors);
+    res.json({ count: totalUsers, mode: "real" });
+  } catch (err) {
+    console.error("User count error:", err);
+    res.json({ count: 0, mode: "real" });
+  }
+});
+
 adminRouter.get("/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const now = new Date();
@@ -260,14 +288,14 @@ adminRouter.get("/settings", requireAdmin, async (req: Request, res: Response) =
       map[s.key] = s.value;
     }
 
-    const keys = ["OPENAI_API_KEY", "YOOKASSA_SHOP_ID", "YOOKASSA_SECRET_KEY", "YANDEX_METRIKA_ID", "GOOGLE_ANALYTICS_ID"];
+    const keys = ["OPENAI_API_KEY", "YOOKASSA_SHOP_ID", "YOOKASSA_SECRET_KEY", "YANDEX_METRIKA_ID", "GOOGLE_ANALYTICS_ID", "USER_COUNTER_MODE", "USER_COUNTER_DEMO_VALUE"];
     const result: Record<string, string> = {};
+    const plainKeys = ["YANDEX_METRIKA_ID", "GOOGLE_ANALYTICS_ID", "USER_COUNTER_MODE", "USER_COUNTER_DEMO_VALUE"];
     for (const k of keys) {
       const stored = map[k];
       const env = process.env[k];
       const val = stored || env || "";
-      const isAnalyticsId = k === "YANDEX_METRIKA_ID" || k === "GOOGLE_ANALYTICS_ID";
-      result[k] = val ? (isAnalyticsId ? val : maskKey(val)) : "";
+      result[k] = val ? (plainKeys.includes(k) ? val : maskKey(val)) : "";
     }
 
     res.json(result);
@@ -280,7 +308,7 @@ adminRouter.get("/settings", requireAdmin, async (req: Request, res: Response) =
 adminRouter.put("/settings", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { key, value } = req.body;
-    const allowedKeys = ["OPENAI_API_KEY", "YOOKASSA_SHOP_ID", "YOOKASSA_SECRET_KEY", "YANDEX_METRIKA_ID", "GOOGLE_ANALYTICS_ID"];
+    const allowedKeys = ["OPENAI_API_KEY", "YOOKASSA_SHOP_ID", "YOOKASSA_SECRET_KEY", "YANDEX_METRIKA_ID", "GOOGLE_ANALYTICS_ID", "USER_COUNTER_MODE", "USER_COUNTER_DEMO_VALUE"];
 
     if (!key || !allowedKeys.includes(key)) {
       res.status(400).json({ error: "Некорректный ключ настройки" });
@@ -289,6 +317,15 @@ adminRouter.put("/settings", requireAdmin, async (req: Request, res: Response) =
 
     if (typeof value !== "string" || value.length > 500) {
       res.status(400).json({ error: "Некорректное значение" });
+      return;
+    }
+
+    if (key === "USER_COUNTER_MODE" && !["real", "demo"].includes(value)) {
+      res.status(400).json({ error: "Допустимые значения: real, demo" });
+      return;
+    }
+    if (key === "USER_COUNTER_DEMO_VALUE" && (isNaN(Number(value)) || Number(value) < 0)) {
+      res.status(400).json({ error: "Значение должно быть числом ≥ 0" });
       return;
     }
 
