@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/SectionCard";
 import { useHrxState } from "@/context/hrx-state";
 import { useAuth } from "@/context/auth-context";
-import { Loader2, CheckCircle, AlertTriangle, XCircle, Copy, Check } from "lucide-react";
+import { Loader2, CheckCircle, AlertTriangle, XCircle, Copy, Check, Mail } from "lucide-react";
 import { buildResumeText } from "@/data/mockResumeHelpers";
 import { trackEvent } from "@/lib/analytics";
 
@@ -35,6 +35,11 @@ const AdaptResult = () => {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AdaptResponse | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const [coverLetter, setCoverLetter] = useState<string | null>(null);
+  const [coverLoading, setCoverLoading] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const [coverCopied, setCoverCopied] = useState(false);
 
   const job = (state.jobsState?.jobs ?? []).find((j) => j.id === id);
 
@@ -88,6 +93,57 @@ const AdaptResult = () => {
       setTimeout(() => setCopied(false), 2000);
     } catch {}
   }, [result]);
+
+  const handleCoverLetter = useCallback(async () => {
+    if (!job) return;
+
+    setCoverLoading(true);
+    setCoverError(null);
+
+    try {
+      const resumeText = result?.adaptedResume || buildResumeText(state, "regular");
+
+      const vacancyParts = [
+        job.description || "",
+        job.requirements ? `\nТребования:\n${job.requirements}` : "",
+      ].join("");
+
+      const res = await fetch("/api/ai/cover-letter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          resumeText,
+          vacancyText: vacancyParts,
+          vacancyTitle: job.title,
+          companyName: job.company,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCoverError(data.error || "Ошибка при генерации письма");
+        return;
+      }
+
+      setCoverLetter(data.coverLetter);
+      trackEvent("cover_letter_generated");
+    } catch {
+      setCoverError("Ошибка сети. Попробуйте позже.");
+    } finally {
+      setCoverLoading(false);
+    }
+  }, [job, state, result]);
+
+  const handleCoverCopy = useCallback(async () => {
+    if (!coverLetter) return;
+    try {
+      await navigator.clipboard.writeText(coverLetter);
+      setCoverCopied(true);
+      setTimeout(() => setCoverCopied(false), 2000);
+    } catch {}
+  }, [coverLetter]);
 
   if (!job) {
     return (
@@ -292,6 +348,85 @@ const AdaptResult = () => {
                   {result.adaptedResume}
                 </pre>
               </div>
+            </SectionCard>
+
+            <SectionCard title="Сопроводительное письмо">
+              {!coverLetter && !coverLoading && !coverError && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    ИИ составит короткое сопроводительное письмо к этой вакансии на основе вашего резюме. Письмо можно скопировать и отправить вместе с откликом.
+                  </p>
+                  <Button
+                    variant="soft"
+                    onClick={handleCoverLetter}
+                    disabled={coverLoading}
+                    className="gap-2"
+                  >
+                    <Mail className="h-4 w-4" />
+                    Сгенерировать письмо
+                  </Button>
+                </div>
+              )}
+
+              {coverLoading && (
+                <div className="flex items-center gap-3 py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">
+                    Генерируем сопроводительное письмо...
+                  </p>
+                </div>
+              )}
+
+              {coverError && (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2 text-destructive">
+                    <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                    <p className="text-sm">{coverError}</p>
+                  </div>
+                  <Button variant="soft" onClick={handleCoverLetter} className="gap-2">
+                    <Mail className="h-4 w-4" />
+                    Попробовать снова
+                  </Button>
+                </div>
+              )}
+
+              {coverLetter && (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="absolute right-0 top-0"
+                      onClick={handleCoverCopy}
+                    >
+                      {coverCopied ? (
+                        <>
+                          <Check className="mr-1 h-4 w-4" />
+                          Скопировано
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="mr-1 h-4 w-4" />
+                          Копировать
+                        </>
+                      )}
+                    </Button>
+                    <pre className="whitespace-pre-wrap text-sm pt-8">
+                      {coverLetter}
+                    </pre>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCoverLetter}
+                    disabled={coverLoading}
+                    className="gap-2"
+                  >
+                    <Mail className="h-4 w-4" />
+                    Сгенерировать заново
+                  </Button>
+                </div>
+              )}
             </SectionCard>
 
             <div className="flex gap-2">

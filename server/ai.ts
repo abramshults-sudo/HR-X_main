@@ -455,6 +455,133 @@ aiRouter.post("/generate", requirePaid, async (req: Request, res: Response) => {
   }
 });
 
+function buildCoverLetterPrompt(resumeText: string, vacancyText: string): string {
+  return `Ты — профессиональный карьерный консультант. Напиши сопроводительное письмо к вакансии на основе резюме кандидата.
+
+ДАННЫЕ КАНДИДАТА:
+${resumeText}
+
+ВАКАНСИЯ:
+${vacancyText}
+
+ТРЕБОВАНИЯ К ПИСЬМУ:
+- Длина: строго до 1000 символов включая пробелы
+- Структура: приветствие → 1-2 предложения о себе → почему эта компания/вакансия → конкретный опыт, релевантный этой должности → призыв к действию → подпись
+- Тон: профессиональный, но живой — не сухой канцелярит и не заискивающий
+- Начинать с «Здравствуйте» или «Добрый день», НЕ с «Уважаемые господа»
+- НЕ использовать клише: «целеустремлённый», «коммуникабельный», «стрессоустойчивый», «командный игрок»
+- Заканчивать конкретно: «Готов(а) пройти собеседование в удобное для вас время»
+- Писать от первого лица, без пафоса
+
+САМОСТОЯТЕЛЬНОСТЬ ТЕКСТА:
+- Письмо — это не пересказ резюме и не пересказ вакансии, а самостоятельный текст
+- Резюме и вакансия используются как источники информации для размышления, а не как материал для копирования или парафраза
+- Нельзя брать формулировки из вакансии и возвращать их кандидату в виде «я умею то, что вы ищете»
+- Нельзя перечислять обязанности из вакансии, даже своими словами
+- Вместо этого: найти точку пересечения между тем, что нужно работодателю, и тем, что есть у кандидата — и написать об этом пересечении своими словами, конкретно и по существу
+
+РАБОТА С ОПЫТОМ КАНДИДАТА:
+- Весь упомянутый опыт должен быть основан исключительно на данных из резюме — не придумывать должности, компании, навыки или достижения, которых там нет
+- Допускается лёгкое акцентирование: подать имеющийся опыт чуть увереннее, выбрать наиболее выгодные формулировки, расставить акценты на том, что релевантно вакансии
+- Недопустимо: менять суть опыта, добавлять годы стажа, приписывать руководящие функции, называть конкретные цифры и результаты, которых нет в резюме
+- Если опыт кандидата частично не совпадает с требованиями — сделать акцент на том, что совпадает, о пробелах умолчать
+
+Верни только текст письма, без пояснений и комментариев.`;
+}
+
+aiRouter.post("/cover-letter", requirePaid, async (req: Request, res: Response) => {
+  try {
+    let apiKey = getOpenAiKey();
+    if (!apiKey) {
+      apiKey = await loadKeyFromDb();
+    }
+    if (!apiKey) {
+      res.status(400).json({
+        error: "API-ключ OpenAI не настроен. Попросите администратора добавить ключ в панели управления.",
+      });
+      return;
+    }
+
+    const { resumeText, vacancyText, vacancyTitle, companyName } = req.body;
+
+    if (!resumeText || typeof resumeText !== "string" || !vacancyText || typeof vacancyText !== "string") {
+      res.status(400).json({ error: "Текст резюме и описание вакансии обязательны" });
+      return;
+    }
+
+    if (resumeText.length > 15000 || vacancyText.length > 15000) {
+      res.status(400).json({ error: "Текст слишком длинный (максимум 15000 символов)" });
+      return;
+    }
+
+    const vacancyFull = [
+      vacancyTitle ? `Должность: ${vacancyTitle}` : "",
+      companyName ? `Компания: ${companyName}` : "",
+      vacancyText,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const openai = new OpenAI({ apiKey });
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: buildCoverLetterPrompt(resumeText, vacancyFull),
+        },
+      ],
+      temperature: 0.5,
+      max_tokens: 600,
+    });
+
+    let content = response.choices[0]?.message?.content;
+    if (!content) {
+      res.status(500).json({ error: "Пустой ответ от ИИ" });
+      return;
+    }
+
+    content = content.trim();
+    if (content.length > 1200) {
+      content = content.slice(0, 1000);
+      const lastDot = content.lastIndexOf(".");
+      if (lastDot > 800) content = content.slice(0, lastDot + 1);
+    }
+
+    addLog(
+      "ai",
+      "cover_letter_generated",
+      {
+        userId: req.session.userId,
+        vacancyTitle: vacancyTitle || null,
+        tokensUsed: response.usage?.total_tokens || 0,
+      },
+      req.ip,
+      req.session.userId,
+    );
+
+    res.json({ coverLetter: content.trim() });
+  } catch (err: any) {
+    console.error("AI cover letter error:", err);
+
+    if (err?.status === 401 || err?.code === "invalid_api_key") {
+      res.status(400).json({ error: "Неверный API-ключ OpenAI" });
+      return;
+    }
+    if (err?.status === 429) {
+      res.status(429).json({ error: "Превышен лимит запросов OpenAI. Попробуйте позже." });
+      return;
+    }
+    if (err?.status === 402 || err?.code === "insufficient_quota") {
+      res.status(402).json({ error: "Недостаточно средств на аккаунте OpenAI" });
+      return;
+    }
+
+    res.status(500).json({ error: "Ошибка генерации. Попробуйте позже." });
+  }
+});
+
 function buildGeneratePrompt(quizData: any, mode: string): string {
   const roles = (quizData.targetRoles || []).join(", ") || "не указаны";
   const experience = quizData.totalExperience || "не указан";

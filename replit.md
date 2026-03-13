@@ -180,8 +180,9 @@ Express server on port 3001 with PostgreSQL database:
 
 Route: POST `/api/ai/adapt` (payment-gated). Uses OpenAI GPT-4o-mini.
 Route: POST `/api/ai/generate` (payment-gated). Uses OpenAI GPT-4o-mini.
-Features: ATS keyword integration, hallucination check, match scoring.
-Both endpoints check `hasPaid` status — unpaid users get 403.
+Route: POST `/api/ai/cover-letter` (payment-gated). Uses OpenAI GPT-4o-mini. Generates a cover letter (up to 1000 chars) based on resume + vacancy.
+Features: ATS keyword integration, hallucination check, match scoring, cover letter generation.
+All AI endpoints check `hasPaid` status — unpaid users get 403.
 
 ## Admin Panel
 
